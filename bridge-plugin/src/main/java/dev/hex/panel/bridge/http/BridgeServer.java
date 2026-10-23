@@ -284,12 +284,12 @@ public class BridgeServer {
 
     private void handleServerStop(Context ctx) {
         Bukkit.getScheduler().runTask(plugin, () -> Bukkit.shutdown());
-        ctx.json(Map.of("ok", true, "message": "Deteniendo servidor..."));
+        ctx.json(Map.of("ok", true, "message", "Deteniendo servidor..."));
     }
 
     private void handleServerRestart(Context ctx) {
         Bukkit.getScheduler().runTask(plugin, () -> Bukkit.spigot().restart());
-        ctx.json(Map.of("ok", true, "message": "Reiniciando servidor..."));
+        ctx.json(Map.of("ok", true, "message", "Reiniciando servidor..."));
     }
 
     private void handleLinkVerify(Context ctx) {
