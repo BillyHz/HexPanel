@@ -16,10 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/pyproject.toml ./backend/
-RUN pip install --no-cache-dir -e ./backend
+COPY backend/ ./backend/
+RUN pip install --no-cache-dir ./backend
 
-COPY backend/app ./backend/app
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 
 ENV HEXPANEL_FRONTEND_DIST=/app/frontend/dist
