@@ -1,6 +1,8 @@
 """API de estado del servidor, consola y energía (PLAN §8, §11)."""
 from __future__ import annotations
 
+import json
+import time
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -25,6 +27,11 @@ class PowerRequest(BaseModel):
 
 class CommandRequest(BaseModel):
     command: str
+
+
+class ChatMessageRequest(BaseModel):
+    message: str
+    sender: Optional[str] = None
 
 
 @router.get("/status")
@@ -69,12 +76,13 @@ def server_console_history(
 async def server_power(
     req: PowerRequest,
     request: Request,
+    db: Session = Depends(get_db),
     ctx: Ctx = Depends(require(SERVER_POWER)),
 ):
     bridge = request.app.state.bridge
     supervisor = getattr(request.app.state, "supervisor", None)
     try:
-        return await handle_power_action(bridge, supervisor, req.action)
+        return await handle_power_action(bridge, supervisor, req.action, db=db)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
@@ -106,3 +114,45 @@ async def server_command(
         raise HTTPException(403, str(e))
     except Exception as e:
         raise HTTPException(502, f"Error al ejecutar comando: {e}")
+
+
+@router.post("/chat")
+async def server_chat(
+    req: ChatMessageRequest,
+    request: Request,
+    ctx: Ctx = Depends(require(SERVER_VIEW)),
+):
+    msg = req.message.strip()
+    if not msg:
+        raise HTTPException(400, "El mensaje no puede estar vacío")
+
+    sender_name = (req.sender.strip() if req.sender and req.sender.strip() else None) or (ctx.user.username if ctx.user else "Admin")
+    bridge = request.app.state.bridge
+
+    tellraw_payload = json.dumps([
+        {"text": "[Panel] ", "color": "aqua", "bold": True},
+        {"text": f"<{sender_name}> ", "color": "yellow"},
+        {"text": msg, "color": "white"},
+    ])
+    cmd = f"tellraw @a {tellraw_payload}"
+
+    try:
+        await bridge.command(cmd)
+    except Exception as e:
+        # Fallback to say if tellraw fails
+        try:
+            await bridge.command(f"say [Panel] <{sender_name}> {msg}")
+        except Exception as e2:
+            raise HTTPException(502, f"Error al enviar chat: {e2}")
+
+    hub = getattr(request.app.state, "hub", None)
+    if hub:
+        user_uuid = (ctx.user.mc_uuid if ctx.user else None) or "panel-admin"
+        await hub.broadcast("chat", {
+            "uuid": user_uuid,
+            "name": f"[Panel] {sender_name}",
+            "message": msg,
+            "timestamp": int(time.time() * 1000),
+        })
+
+    return {"ok": True, "message": msg, "sender": sender_name}

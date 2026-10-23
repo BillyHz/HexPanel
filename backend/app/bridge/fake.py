@@ -103,6 +103,17 @@ class FakeBridge(Bridge):
     def emit_console(self, line: str) -> None:
         self._emit({"type": "console.line", "data": {"line": line, "ts": int(time.time() * 1000)}})
 
+    def emit_chat(self, uuid: str, name: str, message: str) -> None:
+        self._emit({
+            "type": "chat.message",
+            "data": {
+                "uuid": uuid,
+                "name": name,
+                "message": message,
+                "timestamp": int(time.time() * 1000),
+            }
+        })
+
     # ---- Bridge API ----
     async def start(self):
         if self.run_ticker:

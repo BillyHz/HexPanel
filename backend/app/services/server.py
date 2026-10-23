@@ -87,29 +87,34 @@ async def handle_power_action(
     bridge: Bridge,
     supervisor: Optional[Supervisor],
     action: str,
+    db: Optional[Session] = None,
 ) -> dict:
+    result = {}
     if action == "start":
         if supervisor:
-            return await supervisor.start()
-        return {"ok": False, "message": "El modo supervisor no está habilitado"}
+            result = await supervisor.start()
+        else:
+            return {"ok": False, "message": "El modo supervisor no está habilitado"}
 
     elif action == "stop":
         try:
             res = await bridge.server_stop()
-            return {"ok": True, "bridge": res}
+            result = {"ok": True, "bridge": res}
         except Exception:
             if supervisor:
-                return await supervisor.stop()
-            return {"ok": False, "message": "No se pudo comunicar con el servidor"}
+                result = await supervisor.stop()
+            else:
+                return {"ok": False, "message": "No se pudo comunicar con el servidor"}
 
     elif action == "restart":
         try:
             res = await bridge.server_restart()
-            return {"ok": True, "bridge": res}
+            result = {"ok": True, "bridge": res}
         except Exception:
             if supervisor:
-                return await supervisor.restart()
-            return {"ok": False, "message": "No se pudo reiniciar"}
+                result = await supervisor.restart()
+            else:
+                return {"ok": False, "message": "No se pudo reiniciar"}
 
     elif action == "kill":
         if supervisor:
@@ -118,6 +123,23 @@ async def handle_power_action(
 
     else:
         raise ValueError(f"Acción de energía inválida: {action}")
+
+    if db:
+        try:
+            import asyncio
+            from app.services.discord import get_discord_settings, send_discord_alert, COLOR_GREEN, COLOR_RED, COLOR_BLUE
+            d_st = get_discord_settings(db)
+            if d_st and d_st.enabled and d_st.webhook_url:
+                if action == "start" and d_st.notify_on_start:
+                    asyncio.create_task(send_discord_alert(d_st.webhook_url, "🟢 Servidor Iniciado", "El servidor de Minecraft ha sido iniciado desde HexPanel.", COLOR_GREEN))
+                elif action == "stop" and d_st.notify_on_stop:
+                    asyncio.create_task(send_discord_alert(d_st.webhook_url, "🛑 Servidor Detenido", "El servidor de Minecraft ha sido detenido desde HexPanel.", COLOR_RED))
+                elif action == "restart" and (d_st.notify_on_start or d_st.notify_on_stop):
+                    asyncio.create_task(send_discord_alert(d_st.webhook_url, "🔄 Servidor Reiniciándose", "Se ha enviado una orden de reinicio al servidor de Minecraft.", COLOR_BLUE))
+        except Exception:
+            pass
+
+    return result
 
 
 async def execute_server_command(
@@ -130,17 +152,23 @@ async def execute_server_command(
     settings: Settings,
     is_admin: bool,
 ) -> dict:
-    cmd_name = command.strip().split()[0].lower() if command.strip() else ""
+    raw = command.strip()
+    if not raw:
+        return {"ok": False, "message": "Comando vacío"}
+
+    clean_command = raw[1:] if raw.startswith("/") else raw
+    cmd_name = clean_command.split()[0].lower() if clean_command else ""
+
     if cmd_name in settings.dangerous_commands and not is_admin:
         raise PermissionError(f"El comando '{cmd_name}' requiere permisos de administrador")
 
-    res = await bridge.command(command)
+    res = await bridge.command(clean_command)
     record_audit(
         db=db,
         user_id=user_id,
         username=username,
         ip=ip,
         action="server.command",
-        payload={"command": command, "result": res},
+        payload={"command": clean_command, "result": res},
     )
     return res

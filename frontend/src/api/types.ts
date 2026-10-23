@@ -194,3 +194,135 @@ export interface WsMessage {
   type: string
   data: unknown
 }
+
+// --- Nuevos tipos para las 10 funcionalidades HexPanel ---
+
+export interface ChatMessage {
+  id?: string
+  sender: string
+  message: string
+  timestamp?: string
+  isOp?: boolean
+  color?: string
+}
+
+export interface ServerPropertiesData {
+  motd?: string
+  difficulty?: string
+  gamemode?: string
+  'max-players'?: number | string
+  'view-distance'?: number | string
+  'simulation-distance'?: number | string
+  'spawn-protection'?: number | string
+  'server-port'?: number | string
+  'level-name'?: string
+  pvp?: boolean | string
+  'allow-flight'?: boolean | string
+  'allow-nether'?: boolean | string
+  hardcore?: boolean | string
+  'spawn-monsters'?: boolean | string
+  'spawn-animals'?: boolean | string
+  'online-mode'?: boolean | string
+  'white-list'?: boolean | string
+  [key: string]: any
+}
+
+export interface FileItem {
+  name: string
+  path: string
+  isDir: boolean
+  size: number
+  modified: string
+  extension?: string
+}
+
+export interface BackupItem {
+  id: string
+  name: string
+  sizeBytes: number
+  createdAt: string
+  status: 'completed' | 'in_progress' | 'failed'
+}
+
+export interface ScheduleItem {
+  id: string | number
+  name: string
+  actionType: 'command' | 'backup' | 'restart'
+  cron: string
+  payload?: string
+  nextRun?: string
+  enabled: boolean
+}
+
+export interface CreateScheduleDTO {
+  name: string
+  actionType: 'command' | 'backup' | 'restart'
+  cron: string
+  payload?: string
+  enabled?: boolean
+}
+
+export interface MarketPlugin {
+  id: string
+  slug?: string
+  title: string
+  author: string
+  description: string
+  iconUrl?: string
+  downloads: number
+  categories?: string[]
+  clientSide?: boolean
+  serverSide?: boolean
+}
+
+export interface InstalledPlugin {
+  filename: string
+  name: string
+  version?: string
+  enabled: boolean
+  sizeBytes: number
+  description?: string
+}
+
+export interface CrashReportItem {
+  id: string
+  filename: string
+  timestamp: string
+  cause: string
+  explanation: string
+  recommendation: string
+  rawReport?: string
+}
+
+export interface CrashDetail {
+  id: string
+  filename: string
+  timestamp: string
+  cause: string
+  explanation: string
+  recommendation: string
+  stacktrace: string
+  raw: string
+}
+
+export interface DiagnosticIssue {
+  severity: 'critical' | 'warning' | 'info'
+  title: string
+  message: string
+  solution: string
+}
+
+export interface DiagnosticSummary {
+  hasCrashes: boolean
+  issues: DiagnosticIssue[]
+}
+
+export interface DiscordConfig {
+  webhookUrl: string
+  notifyStart: boolean
+  notifyStop: boolean
+  notifyCrash: boolean
+  notifyLowTps: boolean
+  notifyPlayerJoinLeave: boolean
+}
+

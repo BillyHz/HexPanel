@@ -27,6 +27,8 @@ class ClientConnection:
             return self.ctx.can(SERVER_VIEW)
         if topic == "players":
             return self.ctx.can(PLAYERS_VIEW)
+        if topic == "chat":
+            return self.ctx.can(SERVER_VIEW) or self.ctx.can(SERVER_CONSOLE) or (self.ctx.user is not None)
         if topic.startswith("container:"):
             target_uuid = topic.split(":", 1)[1]
             return self.ctx.can(INVENTORY_VIEW) or self.ctx.is_self(target_uuid)
@@ -121,6 +123,8 @@ class WsHub:
                         await self.broadcast("console", edata)
                     elif etype == "metrics.tick":
                         await self.broadcast("metrics", edata)
+                    elif etype == "chat.message":
+                        await self.broadcast("chat", edata if edata else event)
                     elif etype in ("player.join", "player.quit"):
                         await self.broadcast("players", event)
                     elif etype in ("container.diff", "container.locked"):

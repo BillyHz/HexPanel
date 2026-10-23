@@ -1,7 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, YAxis } from 'recharts'
-import { Play, RotateCw, Square, Terminal, Users, Activity, HardDrive, Box, Eye } from 'lucide-react'
+import {
+  Play,
+  RotateCw,
+  Square,
+  Terminal,
+  Users,
+  Activity,
+  HardDrive,
+  Box,
+  Eye,
+  Save,
+  Sun,
+  CloudSun,
+  Zap,
+  Trash2,
+  MessageSquare,
+  Send,
+  Sparkles,
+} from 'lucide-react'
 import { Badge, Card, SkinBust } from '../../components/ui'
 import { api } from '../../api/client'
 import { useWsTopic } from '../../api/useWs'
@@ -60,7 +78,22 @@ export default function ServerStatus() {
     worlds: [],
   })
   const [onlinePlayerList, setOnlinePlayerList] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<'console' | 'chat'>('console')
+  const [chatMessages, setChatMessages] = useState<
+    Array<{ id: string; sender: string; message: string; timestamp: string; isOp?: boolean }>
+  >([
+    {
+      id: 'init-1',
+      sender: 'HexPanel',
+      message: 'Canal de chat sincronizado con Minecraft Paper 1.21.11',
+      timestamp: '12:00:00',
+      isOp: true,
+    },
+  ])
+  const [chatInput, setChatInput] = useState('')
+  const [sendingChat, setSendingChat] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  const chatBoxRef = useRef<HTMLDivElement>(null)
 
   // Cargar estado inicial y métricas históricas
   useEffect(() => {
@@ -153,14 +186,72 @@ export default function ServerStatus() {
     }
   })
 
+  useWsTopic('chat', (msg: any) => {
+    if (!msg) return
+    if (typeof msg === 'string') {
+      setChatMessages((prev) => [
+        ...prev.slice(-200),
+        {
+          id: Math.random().toString(),
+          sender: 'Servidor',
+          message: msg,
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ])
+    } else {
+      setChatMessages((prev) => [
+        ...prev.slice(-200),
+        {
+          id: msg.id || Math.random().toString(),
+          sender: msg.sender || msg.player || 'Jugador',
+          message: msg.message || msg.text || '',
+          timestamp: msg.timestamp || new Date().toLocaleTimeString(),
+          isOp: msg.isOp,
+        },
+      ])
+    }
+  })
+
   useWsTopic('players', () => {
     // Recargar lista si entra o sale un jugador
     api.getPlayers('', true).then((p) => Array.isArray(p) && setOnlinePlayerList(p)).catch(() => {})
   })
 
   useEffect(() => {
-    box.current?.scrollTo(0, box.current.scrollHeight)
-  }, [lines])
+    if (activeTab === 'console') {
+      box.current?.scrollTo(0, box.current.scrollHeight)
+    } else {
+      chatBoxRef.current?.scrollTo(0, chatBoxRef.current.scrollHeight)
+    }
+  }, [lines, chatMessages, activeTab])
+
+  const sendChatMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const msg = chatInput.trim()
+    if (!msg || sendingChat) return
+
+    setSendingChat(true)
+    const newMsg = {
+      id: Math.random().toString(),
+      sender: 'Panel Admin',
+      message: msg,
+      timestamp: new Date().toLocaleTimeString(),
+      isOp: true,
+    }
+    setChatMessages((prev) => [...prev, newMsg])
+    setChatInput('')
+
+    try {
+      await api.sendChatMessage(msg)
+    } catch {
+      // Fallback via /say if backend hasn't implemented chat endpoint yet
+      try {
+        await api.sendServerCommand(`say [Admin]: ${msg}`)
+      } catch {}
+    } finally {
+      setSendingChat(false)
+    }
+  }
 
   const last = data[data.length - 1]
 
@@ -336,56 +427,185 @@ export default function ServerStatus() {
         </Card>
       )}
 
-      {/* Consola en vivo */}
-      <Card className="p-0 overflow-hidden border border-line">
-        <div className="px-4 py-2.5 border-b border-line font-display text-xs tracking-widest text-muted flex items-center justify-between bg-app/70">
-          <div className="flex items-center gap-2">
-            <Terminal size={14} className="text-neon" /> CONSOLA EN VIVO DEL SERVIDOR
-          </div>
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="text-muted mr-1">Comandos rápidos:</span>
-            <button onClick={() => sendCommand('list')} className="ghost-btn text-[11px] py-0.5 px-2">list</button>
-            <button onClick={() => sendCommand('tps')} className="ghost-btn text-[11px] py-0.5 px-2">tps</button>
-            <button onClick={() => sendCommand('weather clear')} className="ghost-btn text-[11px] py-0.5 px-2">clima</button>
-            <button onClick={() => sendCommand('time set day')} className="ghost-btn text-[11px] py-0.5 px-2">día</button>
-            <button onClick={() => sendCommand('save-all')} className="ghost-btn text-[11px] py-0.5 px-2">guardar</button>
-          </div>
+      {/* Acciones Rápidas (Macros) */}
+      <div className="bg-app/70 border border-line p-3.5 rounded-xl shadow-lg flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs font-display tracking-widest text-muted uppercase">
+          <Sparkles size={14} className="text-neon" />
+          <span className="font-bold text-ink">Acciones Rápidas</span>
         </div>
-
-        <div ref={box} className="h-80 overflow-auto p-4 font-mono text-[13px] leading-relaxed" style={{ background: '#02050b' }}>
-          {lines.map((l, i) => (
-            <div
-              key={i}
-              className={
-                l.startsWith('>')
-                  ? 'text-cyan-400 font-bold'
-                  : l.includes('ERROR') || l.startsWith('[Error')
-                  ? 'text-red-400'
-                  : l.includes('WARN')
-                  ? 'text-yellow-400'
-                  : l.includes('INFO')
-                  ? 'text-[#9fe8ff]'
-                  : 'text-slate-300'
-              }
-            >
-              {l}
-            </div>
-          ))}
-        </div>
-
-        <form onSubmit={(e) => { e.preventDefault(); sendCommand(cmd); }} className="flex border-t border-line bg-app/80">
-          <span className="px-3.5 py-2.5 text-neon font-mono select-none font-bold">$</span>
-          <input
-            value={cmd}
-            onChange={(e) => setCmd(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Escribe un comando de Minecraft (ej: list, op, gamemode creative, say hola)..."
-            className="flex-1 bg-transparent outline-none font-mono text-sm py-2 text-ink placeholder:text-muted/60"
-          />
-          <button type="submit" className="px-4 text-xs font-display tracking-widest text-neon hover:bg-hover transition-colors font-bold border-l border-line">
-            ENVIAR
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => sendCommand('save-all')}
+            className="neon-card hover:border-cyan-400 text-xs px-3 py-1.5 rounded flex items-center gap-1.5 font-semibold text-cyan-300 transition-all cursor-pointer"
+          >
+            <Save size={13} className="text-cyan-400" />
+            <span>Guardar Mundo</span>
           </button>
-        </form>
+          <button
+            onClick={() => sendCommand('time set day')}
+            className="neon-card hover:border-yellow-400 text-xs px-3 py-1.5 rounded flex items-center gap-1.5 font-semibold text-yellow-300 transition-all cursor-pointer"
+          >
+            <Sun size={13} className="text-yellow-400" />
+            <span>Hacer Día</span>
+          </button>
+          <button
+            onClick={() => sendCommand('weather clear')}
+            className="neon-card hover:border-emerald-400 text-xs px-3 py-1.5 rounded flex items-center gap-1.5 font-semibold text-emerald-300 transition-all cursor-pointer"
+          >
+            <CloudSun size={13} className="text-emerald-400" />
+            <span>Despejado</span>
+          </button>
+          <button
+            onClick={() => sendCommand('spark health')}
+            className="neon-card hover:border-purple-400 text-xs px-3 py-1.5 rounded flex items-center gap-1.5 font-semibold text-purple-300 transition-all cursor-pointer"
+          >
+            <Zap size={13} className="text-purple-400" />
+            <span>Spark Health</span>
+          </button>
+          <button
+            onClick={() => sendCommand('kill @e[type=item]')}
+            className="neon-card hover:border-rose-400 text-xs px-3 py-1.5 rounded flex items-center gap-1.5 font-semibold text-rose-300 transition-all cursor-pointer"
+          >
+            <Trash2 size={13} className="text-rose-400" />
+            <span>Limpiar Drops</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Terminal & Chat Card con Tab Switcher */}
+      <Card className="p-0 overflow-hidden border border-line">
+        {/* Cabecera con pestañas */}
+        <div className="px-4 py-2 border-b border-line flex items-center justify-between bg-app/80">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab('console')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-display tracking-widest uppercase rounded font-bold transition-all cursor-pointer ${
+                activeTab === 'console'
+                  ? 'bg-hover text-neon border border-neon/50 shadow-[0_0_10px_rgba(0,212,255,0.3)]'
+                  : 'text-muted hover:text-ink'
+              }`}
+            >
+              <Terminal size={14} /> Consola del Servidor
+            </button>
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-display tracking-widest uppercase rounded font-bold transition-all cursor-pointer ${
+                activeTab === 'chat'
+                  ? 'bg-hover text-neon border border-neon/50 shadow-[0_0_10px_rgba(0,212,255,0.3)]'
+                  : 'text-muted hover:text-ink'
+              }`}
+            >
+              <MessageSquare size={14} /> Chat de Jugadores
+              {chatMessages.length > 1 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                  {chatMessages.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {activeTab === 'console' && (
+            <div className="hidden sm:flex items-center gap-1.5 text-xs">
+              <span className="text-muted mr-1">Comandos:</span>
+              <button onClick={() => sendCommand('list')} className="ghost-btn text-[11px] py-0.5 px-2">list</button>
+              <button onClick={() => sendCommand('tps')} className="ghost-btn text-[11px] py-0.5 px-2">tps</button>
+              <button onClick={() => sendCommand('save-all')} className="ghost-btn text-[11px] py-0.5 px-2">save</button>
+            </div>
+          )}
+        </div>
+
+        {/* Contenido según pestaña */}
+        {activeTab === 'console' ? (
+          <div>
+            <div ref={box} className="h-80 overflow-auto p-4 font-mono text-[13px] leading-relaxed" style={{ background: '#02050b' }}>
+              {lines.map((l, i) => (
+                <div
+                  key={i}
+                  className={
+                    l.startsWith('>')
+                      ? 'text-cyan-400 font-bold'
+                      : l.includes('ERROR') || l.startsWith('[Error')
+                      ? 'text-red-400'
+                      : l.includes('WARN')
+                      ? 'text-yellow-400'
+                      : l.includes('INFO')
+                      ? 'text-[#9fe8ff]'
+                      : 'text-slate-300'
+                  }
+                >
+                  {l}
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); sendCommand(cmd); }} className="flex border-t border-line bg-app/80">
+              <span className="px-3.5 py-2.5 text-neon font-mono select-none font-bold">$</span>
+              <input
+                value={cmd}
+                onChange={(e) => setCmd(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Escribe un comando de Minecraft (ej: list, op, gamemode creative, say hola)..."
+                className="flex-1 bg-transparent outline-none font-mono text-sm py-2 text-ink placeholder:text-muted/60"
+              />
+              <button type="submit" className="px-4 text-xs font-display tracking-widest text-neon hover:bg-hover transition-colors font-bold border-l border-line cursor-pointer">
+                ENVIAR
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div>
+            <div ref={chatBoxRef} className="h-80 overflow-auto p-4 space-y-3" style={{ background: '#020611' }}>
+              {chatMessages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-muted text-xs">
+                  <MessageSquare size={24} className="mb-2 opacity-40 text-neon" />
+                  No hay mensajes recientes en el chat del juego.
+                </div>
+              ) : (
+                chatMessages.map((msg) => (
+                  <div key={msg.id} className="flex items-start gap-3 text-sm group">
+                    <div className="scale-[.22] origin-top-left w-7 h-7 shrink-0 -mt-0.5">
+                      <SkinBust size={120} name={msg.sender} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold font-mono text-xs ${msg.isOp ? 'text-yellow-400' : 'text-cyan-400'}`}>
+                          {msg.sender}
+                        </span>
+                        {msg.isOp && (
+                          <span className="text-[10px] uppercase px-1 py-0.2 rounded bg-yellow-500/10 text-yellow-300 border border-yellow-500/30">
+                            OP
+                          </span>
+                        )}
+                        <span className="text-[10px] text-muted font-mono">{msg.timestamp}</span>
+                      </div>
+                      <div className="text-ink mt-0.5 break-words font-sans text-sm">{msg.message}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form onSubmit={sendChatMessage} className="flex border-t border-line bg-app/80">
+              <span className="px-3.5 py-2.5 text-cyan-400 select-none">
+                <MessageSquare size={16} />
+              </span>
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Enviar mensaje público al chat del servidor de Minecraft..."
+                className="flex-1 bg-transparent outline-none text-sm py-2 text-ink placeholder:text-muted/60"
+              />
+              <button
+                type="submit"
+                disabled={sendingChat || !chatInput.trim()}
+                className="px-4 text-xs font-display tracking-widest text-neon hover:bg-hover transition-colors font-bold border-l border-line cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
+              >
+                <Send size={13} />
+                ENVIAR
+              </button>
+            </form>
+          </div>
+        )}
       </Card>
     </div>
   )

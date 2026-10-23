@@ -12,13 +12,37 @@ import {
   History,
   UserCog,
   LogOut,
+  Map,
+  Folder,
+  Sliders,
+  Package,
+  Database,
+  Calendar,
+  Bell,
+  AlertOctagon,
+  Cpu,
+  Layers,
 } from 'lucide-react'
 import { SkinBust } from '../components/ui'
 import { useAuth } from '../store/useAuth'
 
-const adminItems = [
+const serverSection = [
   { to: '/admin/servidor', label: 'Servidor y Métricas', icon: Server, perm: 'server.view' },
   { to: '/admin/jugadores', label: 'Jugadores e Inventarios', icon: Users, perm: 'players.view' },
+  { to: '/admin/mapa', label: 'Mapa 3D', icon: Map, perm: 'server.view' },
+]
+
+const managementSection = [
+  { to: '/admin/archivos', label: 'Gestor de Archivos', icon: Folder, perm: 'server.view' },
+  { to: '/admin/propiedades', label: 'Propiedades y MOTD', icon: Sliders, perm: 'server.view' },
+  { to: '/admin/plugins', label: 'Plugins y Mods', icon: Package, perm: 'server.view' },
+  { to: '/admin/backups', label: 'Copias de Seguridad', icon: Database, perm: 'server.view' },
+]
+
+const automationSection = [
+  { to: '/admin/tareas', label: 'Tareas Programadas', icon: Calendar, perm: 'server.view' },
+  { to: '/admin/discord', label: 'Alertas Discord', icon: Bell, perm: 'server.view' },
+  { to: '/admin/diagnostico', label: 'Diagnóstico y Crashes', icon: AlertOctagon, perm: 'server.view' },
   { to: '/admin/auditoria', label: 'Auditoría y Rollback', icon: History, perm: 'audit.view' },
   { to: '/admin/usuarios', label: 'Usuarios y Roles', icon: UserCog, perm: 'panel.admin' },
 ]
@@ -30,9 +54,9 @@ const playerItems = [
 ]
 
 const linkCls = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+  `flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
     isActive
-      ? 'bg-hover text-neon border border-neon shadow-[0_0_14px_rgba(0,212,255,.35)]'
+      ? 'bg-hover text-neon border border-neon/50 shadow-[0_0_12px_rgba(0,212,255,.3)]'
       : 'text-muted border border-transparent hover:text-ink hover:bg-hover'
   }`
 
@@ -58,7 +82,7 @@ export default function AppShell() {
           <div className="h-14 flex items-center px-5 font-display font-black text-xl tracking-widest neon-text border-b border-line">
             HEX<span className="text-ink">PANEL</span>
           </div>
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-line bg-app/40">
+          <div className="flex items-center gap-3 px-5 py-3.5 border-b border-line bg-app/40">
             <div className="scale-[.28] origin-left w-10 h-10">
               <SkinBust size={140} name={displayName} />
             </div>
@@ -68,36 +92,68 @@ export default function AppShell() {
             </div>
           </div>
 
-          <nav className="p-4 flex flex-col gap-1.5 flex-1 overflow-auto">
+          <nav className="p-3.5 flex flex-col gap-1 flex-1 overflow-y-auto">
             {isAdmin && (
               <>
-                <div className="text-[11px] uppercase tracking-[.2em] text-cyan-400/80 font-bold mb-1 flex items-center gap-1.5 px-2">
-                  <Shield size={12} /> Administración
+                {/* SECCIÓN: SERVIDOR */}
+                <div className="text-[10px] uppercase tracking-[.2em] text-cyan-400 font-bold px-2.5 pt-1 pb-1 flex items-center gap-1.5">
+                  <Cpu size={12} /> Servidor
                 </div>
-                {adminItems
+                {serverSection
                   .filter((item) => hasPerm(item.perm))
                   .map(({ to, label, icon: Icon }) => (
                     <NavLink key={to} to={to} className={linkCls}>
-                      <Icon size={16} />
+                      <Icon size={15} />
                       {label}
                     </NavLink>
                   ))}
-                <div className="my-2 border-b border-line/60" />
+
+                <div className="my-1.5 border-b border-line/40" />
+
+                {/* SECCIÓN: GESTIÓN */}
+                <div className="text-[10px] uppercase tracking-[.2em] text-cyan-400 font-bold px-2.5 pt-1 pb-1 flex items-center gap-1.5">
+                  <Layers size={12} /> Gestión
+                </div>
+                {managementSection
+                  .filter((item) => hasPerm(item.perm))
+                  .map(({ to, label, icon: Icon }) => (
+                    <NavLink key={to} to={to} className={linkCls}>
+                      <Icon size={15} />
+                      {label}
+                    </NavLink>
+                  ))}
+
+                <div className="my-1.5 border-b border-line/40" />
+
+                {/* SECCIÓN: AUTOMATIZACIÓN & SISTEMA */}
+                <div className="text-[10px] uppercase tracking-[.2em] text-cyan-400 font-bold px-2.5 pt-1 pb-1 flex items-center gap-1.5">
+                  <Shield size={12} /> Automatización & Sistema
+                </div>
+                {automationSection
+                  .filter((item) => hasPerm(item.perm))
+                  .map(({ to, label, icon: Icon }) => (
+                    <NavLink key={to} to={to} className={linkCls}>
+                      <Icon size={15} />
+                      {label}
+                    </NavLink>
+                  ))}
+
+                <div className="my-1.5 border-b border-line/60" />
               </>
             )}
 
-            <div className="text-[11px] uppercase tracking-[.2em] text-muted font-bold mb-1 px-2">
+            <div className="text-[10px] uppercase tracking-[.2em] text-muted font-bold px-2.5 pt-1 pb-1">
               Perfil y Juego
             </div>
             {playerItems.map(({ to, label, icon: Icon }) => (
               <NavLink key={to} to={to} className={linkCls}>
-                <Icon size={16} />
+                <Icon size={15} />
                 {label}
               </NavLink>
             ))}
           </nav>
 
-          <div className="p-4 border-t border-line">
+          <div className="p-3.5 border-t border-line">
             <button
               onClick={() => logout().then(() => nav('/login'))}
               className="flex items-center gap-2 text-xs text-muted hover:text-red-400 transition-colors w-full cursor-pointer py-1"

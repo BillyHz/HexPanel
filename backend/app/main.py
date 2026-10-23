@@ -17,11 +17,19 @@ from sqlmodel import Session, select
 
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
+from app.api.backups import router as backups_router
+from app.api.crashes import router as crashes_router
+from app.api.discord_alerts import router as discord_router
+from app.api.files import router as files_router
 from app.api.inventory import router as inventory_router
 from app.api.items import router as items_router
+from app.api.map_config import router as map_router
 from app.api.me import router as me_router
 from app.api.players import router as players_router
+from app.api.plugins_market import router as plugins_router
+from app.api.schedules import router as schedules_router
 from app.api.server import router as server_router
+from app.api.server_props import router as server_props_router
 from app.bridge.client import Bridge, HttpBridge
 from app.bridge.fake import FakeBridge
 from app.core.config import Settings, get_settings
@@ -29,6 +37,8 @@ from app.core.security import limiter, resolve_session, hash_password
 from app.db import models
 from app.db.models import MetricSample, utcnow
 from app.db.session import init_db, make_engine
+from app.services.discord import COLOR_ORANGE, get_discord_settings, send_discord_alert
+from app.services.schedules import execute_task
 from app.services.supervisor import Supervisor
 from app.ws.hub import WsHub
 
@@ -83,6 +93,26 @@ async def _metrics_sampler(app: FastAPI, settings: Settings) -> None:
                     db.delete(old)
                 db.commit()
 
+                # Alerta de TPS bajo a Discord
+                if tps is not None and tps < 16.0:
+                    last_alert = getattr(app.state, "_last_low_tps_alert", 0.0)
+                    now_ts = datetime.now(timezone.utc).timestamp()
+                    if now_ts - last_alert > 300:  # 5 minutos de cooldown
+                        app.state._last_low_tps_alert = now_ts
+                        d_st = get_discord_settings(db)
+                        if d_st and d_st.enabled and d_st.notify_on_low_tps and d_st.webhook_url:
+                            asyncio.create_task(send_discord_alert(
+                                webhook_url=d_st.webhook_url,
+                                title="⚠️ Rendimiento Bajo del Servidor",
+                                description=f"El servidor presenta degradación de TPS: **{tps:.2f}** (esperado: 20.0).",
+                                color=COLOR_ORANGE,
+                                fields=[
+                                    {"name": "TPS", "value": f"{tps:.2f}", "inline": True},
+                                    {"name": "MSPT", "value": f"{mspt:.2f} ms", "inline": True},
+                                    {"name": "Jugadores", "value": str(players), "inline": True},
+                                ],
+                            ))
+
         except asyncio.CancelledError:
             break
         except Exception:
@@ -133,6 +163,32 @@ async def _console_tailer(app: FastAPI, settings: Settings) -> None:
             await asyncio.sleep(1)
 
 
+async def _schedules_runner(app: FastAPI, settings: Settings) -> None:
+    while True:
+        try:
+            await asyncio.sleep(15)
+            engine = getattr(app.state, "engine", None)
+            if not engine:
+                continue
+            now = utcnow()
+            with Session(engine) as db:
+                tasks = db.exec(
+                    select(models.ScheduleTask).where(
+                        models.ScheduleTask.enabled == True,
+                        (models.ScheduleTask.next_run <= now) | (models.ScheduleTask.next_run == None),
+                    )
+                ).all()
+                for task in tasks:
+                    try:
+                        await execute_task(task, app.state, settings, db)
+                    except Exception:
+                        pass
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            await asyncio.sleep(5)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -171,9 +227,11 @@ async def lifespan(app: FastAPI):
 
     sampler_task = None
     tailer_task = None
+    schedules_task = None
     if settings.run_background:
         sampler_task = asyncio.create_task(_metrics_sampler(app, settings))
         tailer_task = asyncio.create_task(_console_tailer(app, settings))
+        schedules_task = asyncio.create_task(_schedules_runner(app, settings))
 
     yield
 
@@ -181,6 +239,8 @@ async def lifespan(app: FastAPI):
         sampler_task.cancel()
     if tailer_task:
         tailer_task.cancel()
+    if schedules_task:
+        schedules_task.cancel()
     await hub.stop()
     await bridge.close()
 
@@ -204,6 +264,14 @@ def create_app() -> FastAPI:
     app.include_router(players_router, prefix=api_prefix)
     app.include_router(inventory_router, prefix=api_prefix)
     app.include_router(server_router, prefix=api_prefix)
+    app.include_router(server_props_router, prefix=api_prefix)
+    app.include_router(files_router, prefix=api_prefix)
+    app.include_router(backups_router, prefix=api_prefix)
+    app.include_router(schedules_router, prefix=api_prefix)
+    app.include_router(discord_router, prefix=api_prefix)
+    app.include_router(plugins_router, prefix=api_prefix)
+    app.include_router(crashes_router, prefix=api_prefix)
+    app.include_router(map_router, prefix=api_prefix)
     app.include_router(items_router, prefix=api_prefix)
     app.include_router(admin_router, prefix=api_prefix)
 

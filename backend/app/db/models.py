@@ -65,3 +65,32 @@ class MetricSample(SQLModel, table=True):
     cpu: Optional[float] = None
     ram_mb: Optional[int] = None
     players: int = 0
+
+
+class ScheduleTask(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    cron_expr: str
+    action_type: str  # 'command' | 'backup' | 'restart'
+    payload: str = ""
+    enabled: bool = True
+    last_run: Optional[datetime] = None
+    next_run: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class DiscordSettings(SQLModel, table=True):
+    id: int = Field(default=1, primary_key=True)
+    webhook_url: str = ""
+    enabled: bool = False
+    notify_on_start: bool = True
+    notify_on_stop: bool = True
+    notify_on_crash: bool = True
+    notify_on_low_tps: bool = True
+
+
+class MapSettings(SQLModel, table=True):
+    id: int = Field(default=1, primary_key=True)
+    enabled: bool = True
+    url: str = "http://100.72.184.60:8100"
+    title: str = "Mapa del Servidor"

@@ -9,6 +9,14 @@ import Players from './pages/admin/Players'
 import PlayerDetail from './pages/admin/PlayerDetail'
 import Audit from './pages/admin/Audit'
 import Users from './pages/admin/Users'
+import ServerProperties from './pages/admin/ServerProperties'
+import FileManager from './pages/admin/FileManager'
+import Backups from './pages/admin/Backups'
+import Schedules from './pages/admin/Schedules'
+import PluginMarket from './pages/admin/PluginMarket'
+import CrashAnalyzer from './pages/admin/CrashAnalyzer'
+import DiscordSettings from './pages/admin/DiscordSettings'
+import ServerMap from './pages/admin/ServerMap'
 import Login from './pages/Login'
 import { useAuth } from './store/useAuth'
 
@@ -67,9 +75,23 @@ export default function App() {
         <Route path="/cuenta" element={<Account />} />
         <Route path="/logros" element={<Achievements />} />
         <Route path="/ajustes" element={<Settings />} />
+
+        {/* Servidor */}
         <Route path="/admin/servidor" element={<ServerStatus />} />
         <Route path="/admin/jugadores" element={<Players />} />
         <Route path="/admin/jugadores/:name" element={<PlayerDetail />} />
+        <Route path="/admin/mapa" element={<ServerMap />} />
+
+        {/* Gestión */}
+        <Route path="/admin/archivos" element={<FileManager />} />
+        <Route path="/admin/propiedades" element={<ServerProperties />} />
+        <Route path="/admin/plugins" element={<PluginMarket />} />
+        <Route path="/admin/backups" element={<Backups />} />
+
+        {/* Automatización & Sistema */}
+        <Route path="/admin/tareas" element={<Schedules />} />
+        <Route path="/admin/discord" element={<DiscordSettings />} />
+        <Route path="/admin/diagnostico" element={<CrashAnalyzer />} />
         <Route path="/admin/auditoria" element={<Audit />} />
         <Route path="/admin/usuarios" element={<Users />} />
       </Route>
