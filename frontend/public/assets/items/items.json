@@ -1,0 +1,92 @@
+[
+ {
+  "id": "minecraft:diamond_sword",
+  "name": "Espada de diamante",
+  "maxStack": 1,
+  "category": "combat"
+ },
+ {
+  "id": "minecraft:netherite_pickaxe",
+  "name": "Pico de netherita",
+  "maxStack": 1,
+  "category": "tools"
+ },
+ {
+  "id": "minecraft:diamond",
+  "name": "Diamante",
+  "maxStack": 64,
+  "category": "misc"
+ },
+ {
+  "id": "minecraft:cobblestone",
+  "name": "Roca",
+  "maxStack": 64,
+  "category": "blocks"
+ },
+ {
+  "id": "minecraft:golden_apple",
+  "name": "Manzana dorada",
+  "maxStack": 64,
+  "category": "food"
+ },
+ {
+  "id": "minecraft:ender_pearl",
+  "name": "Perla de ender",
+  "maxStack": 16,
+  "category": "misc"
+ },
+ {
+  "id": "minecraft:redstone",
+  "name": "Redstone",
+  "maxStack": 64,
+  "category": "redstone"
+ },
+ {
+  "id": "minecraft:bow",
+  "name": "Arco",
+  "maxStack": 1,
+  "category": "combat"
+ },
+ {
+  "id": "minecraft:arrow",
+  "name": "Flecha",
+  "maxStack": 64,
+  "category": "combat"
+ },
+ {
+  "id": "minecraft:bread",
+  "name": "Pan",
+  "maxStack": 64,
+  "category": "food"
+ },
+ {
+  "id": "minecraft:diamond_helmet",
+  "name": "Casco de diamante",
+  "maxStack": 1,
+  "category": "armor"
+ },
+ {
+  "id": "minecraft:diamond_chestplate",
+  "name": "Peto de diamante",
+  "maxStack": 1,
+  "category": "armor"
+ },
+ {
+  "id": "minecraft:diamond_leggings",
+  "name": "Grebas de diamante",
+  "maxStack": 1,
+  "category": "armor"
+ },
+ {
+  "id": "minecraft:diamond_boots",
+  "name": "Botas de diamante",
+  "maxStack": 1,
+  "category": "armor"
+ },
+ {
+  "id": "minecraft:shield",
+  "name": "Escudo",
+  "maxStack": 1,
+  "category": "combat"
+ }
+]

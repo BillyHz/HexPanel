@@ -1,0 +1,33 @@
+# HexPanel Bridge configuration.
+# The bridge ONLY listens on loopback by default. Never expose this port to the Internet.
+bind: 127.0.0.1
+port: 8765
+
+# Shared secret (Bearer token). Generated on first start (256 bits). Copy it into the backend config.
+token: ""
+
+offline:
+  # Read offline players' inventories directly from world/playerdata/<uuid>.dat (NMS-free NBT reader).
+  allowRead: true
+  # EXPERIMENTAL: write offline edits back to the .dat file (NMS-free NBT writer). A backup of the
+  # file is stored in plugins/HexPanelBridge/backups/ before every write.
+  allowNbtWrite: false
+  # How long a joining player is delayed while an admin is editing their offline data.
+  lockWaitMillis: 3000
+
+watch:
+  intervalTicks: 4
+
+metrics:
+  intervalTicks: 100
+
+console:
+  historyLines: 500
+
+link:
+  ttlMinutes: 10
+
+stats:
+  # Extra values exposed in /v1/players/{uuid}/stats -> custom{}. Requires PlaceholderAPI.
+  # Example:  workPoints: "%jobsr_user_points%"
+  placeholders: {}

@@ -1,0 +1,100 @@
+@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600&display=swap");
+@import "tailwindcss";
+
+/* Tokens neon cyberpunk azul (reemplazan los tokens verdes de PLAN §2) */
+:root {
+  --bg-app: #05070f;
+  --bg-sidebar: #070b17;
+  --bg-card: #0a1020;
+  --bg-hover: #0f1a33;
+  --border: #12305a;
+  --text: #e6f4ff;
+  --text-muted: #6f8bb0;
+  --accent: #00d4ff;
+  --accent-2: #3b6dff;
+  --neon-pink: #ff2bd6;
+  --chip-blue: #00b4ff;
+  --chip-green: #00ffa3;
+  --chip-purple: #a35bff;
+  --chip-red: #ff3b6b;
+  --chip-yellow: #ffc933;
+  --radius-card: 6px;
+  --glow: 0 0 8px rgba(0, 212, 255, 0.55), 0 0 22px rgba(0, 212, 255, 0.25);
+}
+
+@theme inline {
+  --color-app: var(--bg-app);
+  --color-card: var(--bg-card);
+  --color-hover: var(--bg-hover);
+  --color-line: var(--border);
+  --color-ink: var(--text);
+  --color-muted: var(--text-muted);
+  --color-neon: var(--accent);
+  --font-display: "Orbitron", sans-serif;
+  --font-sans: "Rajdhani", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(1000px 500px at 85% -10%, rgba(59, 109, 255, 0.18), transparent 60%),
+    radial-gradient(800px 400px at 0% 100%, rgba(0, 212, 255, 0.10), transparent 60%),
+    var(--bg-app);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+}
+/* rejilla sutil de fondo */
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(rgba(0, 212, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+#root { position: relative; z-index: 1; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+.neon-card {
+  background: linear-gradient(180deg, rgba(12, 20, 40, 0.92), rgba(8, 13, 28, 0.92));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: inset 0 0 0 1px rgba(0, 212, 255, 0.04), 0 0 18px rgba(0, 80, 255, 0.08);
+  transition: border-color .2s, box-shadow .2s;
+}
+.neon-card:hover { border-color: rgba(0, 212, 255, 0.5); box-shadow: var(--glow); }
+.neon-text { color: var(--accent); text-shadow: 0 0 10px rgba(0, 212, 255, 0.7); }
+.neon-btn {
+  background: linear-gradient(90deg, #00b4ff, #3b6dff);
+  color: #00111f; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  border-radius: 4px; padding: 6px 16px; box-shadow: var(--glow); cursor: pointer;
+  transition: filter .2s, transform .1s;
+}
+.neon-btn:hover { filter: brightness(1.2); }
+.neon-btn:active { transform: scale(.97); }
+.ghost-btn {
+  border: 1px solid var(--border); border-radius: 4px; padding: 6px 14px; color: var(--text);
+  text-transform: uppercase; font-weight: 600; font-size: 13px; letter-spacing: .06em; cursor: pointer;
+  transition: all .2s;
+}
+.ghost-btn:hover { border-color: var(--accent); color: var(--accent); box-shadow: var(--glow); }
+.ghost-btn.danger:hover { border-color: var(--chip-red); color: var(--chip-red); box-shadow: 0 0 12px rgba(255, 59, 107, .5); }
+
+.mc-slot {
+  width: 48px; height: 48px; position: relative;
+  background: rgba(0, 20, 50, 0.7);
+  border: 1px solid #14407a; border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.mc-slot.over { border-color: var(--accent); box-shadow: var(--glow); background: rgba(0, 212, 255, .15); }
+.mc-slot:hover { border-color: var(--accent); }
+
+@keyframes pulse-glow { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
+.pulse { animation: pulse-glow 1.6s infinite; }

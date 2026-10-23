@@ -1,0 +1,16 @@
+name: HexPanelBridge
+version: '${version}'
+main: dev.hex.panel.bridge.HexPanelBridge
+api-version: '1.21'
+description: Bridge between the HexPanel backend and the Paper server.
+authors: [HexLauncher]
+softdepend: [Vault, PlaceholderAPI, spark]
+commands:
+  panel:
+    description: HexPanel account linking
+    usage: /panel <link|reset>
+    permission: hexpanel.link
+permissions:
+  hexpanel.link:
+    description: Allows /panel link and /panel reset
+    default: true

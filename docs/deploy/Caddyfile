@@ -1,0 +1,34 @@
+# Ejemplo de Caddyfile para HexPanel (PLAN §12 Fase 6)
+# Reemplaza panel.tu-dominio.com por tu dominio real.
+
+panel.tu-dominio.com {
+    # Redirigir todo el tráfico al backend FastAPI de HexPanel
+    reverse_proxy 127.0.0.1:8000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Soporte completo para WebSockets (/ws)
+        transport http {
+            keepalive 30s
+        }
+    }
+
+    # Cabeceras de seguridad
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Compresión automática zstd y gzip
+    encode zstd gzip
+
+    # Logs de acceso
+    log {
+        output file /var/log/caddy/hexpanel.log
+        format console
+    }
+}
