@@ -1,0 +1,31 @@
+services:
+  hexpanel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hexpanel
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - HEXPANEL_BRIDGE_URL=http://mc-hardcore:8765
+      - HEXPANEL_BRIDGE_TOKEN=${HEXPANEL_BRIDGE_TOKEN:-}
+      - HEXPANEL_SERVER_DIR=/server-data
+      - HEXPANEL_COOKIE_SECURE=false
+      - HEXPANEL_DATA_DIR=/app/data
+      - HEXPANEL_ADMIN_USERNAME=${HEXPANEL_ADMIN_USERNAME:-admin}
+      - HEXPANEL_ADMIN_PASSWORD=${HEXPANEL_ADMIN_PASSWORD:-admin1234}
+    volumes:
+      - hexpanel_data:/app/data
+      - mc-hardcore_mc-hardcore-data:/server-data:ro
+    networks:
+      - mc-hardcore_default
+
+volumes:
+  hexpanel_data:
+  mc-hardcore_mc-hardcore-data:
+    external: true
+
+networks:
+  mc-hardcore_default:
+    external: true

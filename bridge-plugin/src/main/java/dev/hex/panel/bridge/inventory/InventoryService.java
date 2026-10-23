@@ -49,10 +49,22 @@ public class InventoryService {
         Player player = Bukkit.getPlayer(uuid);
         boolean online = player != null && player.isOnline();
 
+        if (online) {
+            try {
+                return Bukkit.getScheduler().callSyncMethod(plugin, () -> buildContainersDto(uuid, player, true))
+                    .get(2, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception e) {
+                plugin.getLogger().warning("Error reading player inventory sync: " + e.getMessage());
+            }
+        }
+        return buildContainersDto(uuid, null, false);
+    }
+
+    private Map<String, Object> buildContainersDto(UUID uuid, Player player, boolean online) {
         ItemStack[] invContents;
         ItemStack[] ecContents;
 
-        if (online) {
+        if (online && player != null) {
             invContents = new ItemStack[41];
             ItemStack[] storage = player.getInventory().getContents(); // 0..35
             System.arraycopy(storage, 0, invContents, 0, Math.min(storage.length, 36));
