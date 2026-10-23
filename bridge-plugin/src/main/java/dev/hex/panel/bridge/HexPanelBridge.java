@@ -41,7 +41,7 @@ public class HexPanelBridge extends JavaPlugin implements Listener {
             getLogger().info("Generado nuevo token de autenticación para HexPanel Bridge.");
         }
 
-        String host = getConfig().getString("host", "127.0.0.1");
+        String host = getConfig().getString("host", getConfig().getString("bind", "0.0.0.0"));
         int port = getConfig().getInt("port", 8765);
 
         EditLockManager lockManager = new EditLockManager();
