@@ -1,13 +1,22 @@
 package dev.hex.panel.bridge.inventory;
 
-import dev.hex.panel.bridge.inventory.ops.*;
+import dev.hex.panel.bridge.inventory.ops.DefaultSlotRules;
+import dev.hex.panel.bridge.inventory.ops.Op;
+import dev.hex.panel.bridge.inventory.ops.OpEngine;
+import dev.hex.panel.bridge.inventory.ops.OpException;
+import dev.hex.panel.bridge.inventory.ops.SlotRules;
+import dev.hex.panel.bridge.inventory.ops.Stack;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 

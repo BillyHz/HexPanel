@@ -1,6 +1,7 @@
 package dev.hex.panel.bridge.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.hex.panel.bridge.HexPanelBridge;
 import dev.hex.panel.bridge.auth.LinkCommand;
 import dev.hex.panel.bridge.inventory.InventoryService;
 import dev.hex.panel.bridge.inventory.WatchTask;
