@@ -119,4 +119,51 @@ public class HexPanelBridge extends JavaPlugin implements Listener {
             ));
         }
     }
+
+    @EventHandler
+    public void onInventoryClick(org.bukkit.event.inventory.InventoryClickEvent event) {
+        if (event.getWhoClicked() instanceof org.bukkit.entity.Player p) {
+            triggerCheck(p);
+        }
+    }
+
+    @EventHandler
+    public void onInventoryDrag(org.bukkit.event.inventory.InventoryDragEvent event) {
+        if (event.getWhoClicked() instanceof org.bukkit.entity.Player p) {
+            triggerCheck(p);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerSwapHandItems(org.bukkit.event.player.PlayerSwapHandItemsEvent event) {
+        triggerCheck(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onPlayerDropItem(org.bukkit.event.player.PlayerDropItemEvent event) {
+        triggerCheck(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onEntityPickupItem(org.bukkit.event.entity.EntityPickupItemEvent event) {
+        if (event.getEntity() instanceof org.bukkit.entity.Player p) {
+            triggerCheck(p);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerItemHeld(org.bukkit.event.player.PlayerItemHeldEvent event) {
+        triggerCheck(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onPlayerInteract(org.bukkit.event.player.PlayerInteractEvent event) {
+        triggerCheck(event.getPlayer());
+    }
+
+    private void triggerCheck(org.bukkit.entity.Player p) {
+        if (watchTask != null && p != null && p.isOnline()) {
+            Bukkit.getScheduler().runTask(this, () -> watchTask.checkPlayer(p));
+        }
+    }
 }

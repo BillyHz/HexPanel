@@ -124,9 +124,13 @@ class WsHub:
                     elif etype in ("player.join", "player.quit"):
                         await self.broadcast("players", event)
                     elif etype in ("container.diff", "container.locked"):
-                        uuid = event.get("uuid") or edata.get("uuid")
+                        uuid = event.get("uuid") or (edata.get("uuid") if isinstance(edata, dict) else None)
+                        name = event.get("name") or (edata.get("name") if isinstance(edata, dict) else None)
                         if uuid:
                             await self.broadcast(f"container:{uuid}", event)
+                        if name:
+                            await self.broadcast(f"container:{name}", event)
+                            await self.broadcast(f"container:{name.lower()}", event)
             except asyncio.CancelledError:
                 break
             except Exception as e:

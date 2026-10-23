@@ -50,6 +50,9 @@ public class InventoryService {
         boolean online = player != null && player.isOnline();
 
         if (online) {
+            if (Bukkit.isPrimaryThread()) {
+                return buildContainersDto(uuid, player, true);
+            }
             try {
                 return Bukkit.getScheduler().callSyncMethod(plugin, () -> buildContainersDto(uuid, player, true))
                     .get(2, java.util.concurrent.TimeUnit.SECONDS);

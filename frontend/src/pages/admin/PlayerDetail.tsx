@@ -10,7 +10,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import { Trash2, AlertTriangle } from 'lucide-react'
+import { Trash2, AlertTriangle, RotateCw } from 'lucide-react'
 import { Card, SkinBust } from '../../components/ui'
 import { api } from '../../api/client'
 import { useWsTopic } from '../../api/useWs'
@@ -221,15 +221,26 @@ export default function PlayerDetail() {
     api.getItems().then(setCatalog).catch(() => {})
   }, [name])
 
-  // Escuchar diffs del WebSocket en vivo
-  useWsTopic(`container:${name}`, (diff: any) => {
+  // Escuchar diffs del WebSocket en vivo (tanto por nombre como por UUID)
+  const handleContainerDiff = (diff: any) => {
+    if (!diff) return
     if (diff.container && diff.data) {
       setState((prev) => ({
         ...prev,
         [diff.container]: diff.data,
       }))
+    } else if (diff.inventory || diff.enderchest) {
+      setState((prev) => ({
+        inventory: diff.inventory || prev.inventory,
+        enderchest: diff.enderchest || prev.enderchest,
+      }))
     }
-  })
+    // Sincronizar estadísticas en segundo plano
+    api.getPlayerOverview(name).then(setOverview).catch(() => {})
+  }
+
+  useWsTopic(`container:${name}`, handleContainerDiff)
+  useWsTopic(overview?.uuid ? `container:${overview.uuid}` : '', handleContainerDiff)
 
   const onDragStart = (e: DragStartEvent) => {
     const ref = parseRefKey(String(e.active.id))
@@ -348,6 +359,13 @@ export default function PlayerDetail() {
           </div>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => loadData()}
+            className="ghost-btn text-xs py-1 inline-flex items-center gap-1.5"
+            title="Sincronizar inmediatamente inventario y estadísticas"
+          >
+            <RotateCw size={13} /> Recargar
+          </button>
           <button
             onClick={() => api.executePlayerAction(name, 'kick').then(() => alert('Jugador expulsado'))}
             className="ghost-btn text-xs py-1"

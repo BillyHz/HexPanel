@@ -100,11 +100,21 @@ public class BridgeServer {
                     String action = (String) msg.get("action");
                     String uuidStr = (String) msg.get("uuid");
                     if (uuidStr != null && watchTask != null) {
-                        UUID uuid = UUID.fromString(uuidStr);
-                        if ("watch".equalsIgnoreCase(action)) {
-                            watchTask.watch(uuid, true);
-                        } else if ("unwatch".equalsIgnoreCase(action)) {
-                            watchTask.watch(uuid, false);
+                        UUID uuid = null;
+                        try {
+                            uuid = UUID.fromString(uuidStr);
+                        } catch (Exception e) {
+                            Player p = Bukkit.getPlayerExact(uuidStr);
+                            if (p != null) {
+                                uuid = p.getUniqueId();
+                            }
+                        }
+                        if (uuid != null) {
+                            if ("watch".equalsIgnoreCase(action)) {
+                                watchTask.watch(uuid, true);
+                            } else if ("unwatch".equalsIgnoreCase(action)) {
+                                watchTask.watch(uuid, false);
+                            }
                         }
                     }
                 } catch (Exception ignored) {}
