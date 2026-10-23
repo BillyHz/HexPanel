@@ -572,3 +572,18 @@ def test_web_map_config(client: TestClient):
     assert put_res.status_code == 200
     assert put_res.json()["url"] == "http://100.72.184.60:8123"
     assert put_res.json()["title"] == "Dynmap Hardcore Server"
+
+    # Probar endpoint de estado
+    st_res = client.get("/api/server/map/status")
+    assert st_res.status_code == 200
+    assert "installed" in st_res.json()
+    assert "online" in st_res.json()
+
+    # Probar acción de mapa
+    act_res = client.post(
+        "/api/server/map/action",
+        json={"action": "reload"},
+        headers={"x-csrf-token": csrf},
+    )
+    assert act_res.status_code == 200
+    assert act_res.json()["status"] == "ok"

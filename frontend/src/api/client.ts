@@ -401,4 +401,17 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ url, enabled }),
     }),
+  getMapStatus: () =>
+    request<{
+      installed: boolean
+      plugin_name: string
+      online: boolean
+      url: string
+      enabled: boolean
+    }>('/api/server/map/status'),
+  triggerMapAction: (action: 'render' | 'pause' | 'reload' | 'cancel') =>
+    request<{ status: string; result?: any }>('/api/server/map/action', {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    }),
 }
