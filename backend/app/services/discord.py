@@ -1,4 +1,4 @@
-"""Servicio de alertas mediante Webhooks de Discord."""
+"""Service for Discord Webhook alerts and notifications."""
 from __future__ import annotations
 
 import logging

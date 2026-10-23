@@ -1,4 +1,4 @@
-"""Tests de integración para las 10 nuevas funcionalidades de HexPanel Backend."""
+"""Integration tests for all 10 HexPanel community features."""
 from __future__ import annotations
 
 import io
@@ -6,6 +6,14 @@ import os
 import struct
 import zlib
 from pathlib import Path
+
+# Configure test environment before importing app
+os.environ["HEXPANEL_FAKE_BRIDGE"] = "1"
+os.environ["HEXPANEL_DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["HEXPANEL_COOKIE_SECURE"] = "0"
+os.environ["HEXPANEL_RUN_BACKGROUND"] = "0"
+os.environ["HEXPANEL_AUTH_RATE_LIMIT"] = "1000/minute"
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select

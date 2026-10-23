@@ -1,4 +1,4 @@
-"""API de análisis de caídas (Crash Analyzer) y diagnósticos de errores."""
+"""API for crash report analysis and error diagnostics."""
 from __future__ import annotations
 
 import re

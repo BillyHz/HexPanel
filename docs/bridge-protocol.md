@@ -1,44 +1,44 @@
-# Protocolo HexPanel Bridge v1
+# HexPanel Bridge Protocol v1
 
-Contrato formal de comunicación entre **HexPanel Backend** (FastAPI) y **HexPanel-Bridge** (plugin Paper 1.21.11, Java 21).
+Formal communication contract between **HexPanel Backend** (FastAPI) and **HexPanel-Bridge** (Paper 1.21.11 Plugin, Java 21).
 
 ---
 
-## 1. Transporte y Autenticación
+## 1. Transport & Authentication
 
-- **Host y Puerto**: Exclusivamente en `127.0.0.1:8765` (configurable en `plugins/HexPanelBridge/config.yml`).
-- **Seguridad**:
-  - Toda petición HTTP debe incluir la cabecera:
+- **Host & Port**: Exclusively bound to `127.0.0.1:8765` (configurable in `plugins/HexPanelBridge/config.yml`).
+- **Security**:
+  - Every HTTP request must include the header:
     ```http
-    Authorization: Bearer <TOKEN_DE_256_BITS>
+    Authorization: Bearer <256_BIT_TOKEN>
     ```
-  - Las conexiones WebSocket deben enviar el token en la cabecera `Authorization` o como parámetro de consulta `?token=<TOKEN>`.
-  - La verificación del token en el Bridge se hace en tiempo constante (`MessageDigest.isEqual`).
+  - WebSocket connections must send the token in the `Authorization` header or as a query parameter `?token=<TOKEN>`.
+  - Bridge token validation is performed in constant time using `MessageDigest.isEqual`.
 
 ---
 
-## 2. Endpoints REST
+## 2. REST Endpoints
 
 ### `GET /v1/health`
-Devuelve el estado de salud del plugin y del servidor Minecraft.
+Returns the operational health of the plugin and Minecraft server.
 
-**Respuesta 200 OK:**
+**Response 200 OK:**
 ```jsonc
 {
   "version": "1.0.0",
   "mcVersion": "1.21.11",
   "paper": true,
   "uptime": 3600,
-  "offlineEditing": true // false si NMS no está disponible
+  "offlineEditing": true // false if NMS is unavailable
 }
 ```
 
 ---
 
 ### `GET /v1/metrics`
-Devuelve las métricas de rendimiento y jugadores en tiempo real.
+Returns real-time performance and player metrics.
 
-**Respuesta 200 OK:**
+**Response 200 OK:**
 ```jsonc
 {
   "tps": [20.0, 19.95, 20.0], // 1m, 5m, 15m
@@ -61,13 +61,13 @@ Devuelve las métricas de rendimiento y jugadores en tiempo real.
 ---
 
 ### `GET /v1/players?query=&online=`
-Lista los jugadores registrados o actualmente conectados.
+Lists registered or currently connected players.
 
-**Parámetros:**
-- `query` *(opcional)*: filtro por nombre o prefijo de UUID.
-- `online` *(opcional)*: `true` para solo conectados, `false` para desconectados.
+**Parameters:**
+- `query` *(optional)*: filter by username or UUID prefix.
+- `online` *(optional)*: `true` for online only, `false` for offline.
 
-**Respuesta 200 OK:**
+**Response 200 OK:**
 ```jsonc
 [
   {
@@ -83,16 +83,16 @@ Lista los jugadores registrados o actualmente conectados.
 ---
 
 ### `GET /v1/players/{uuid}/stats`
-Estadísticas del jugador (Vanilla, Vault y PlaceholderAPI).
+Player stats (Vanilla, Vault economy, and PlaceholderAPI).
 
-**Respuesta 200 OK:**
+**Response 200 OK:**
 ```jsonc
 {
   "mobKills": 15,
   "blocksMined": 543,
   "playTimeTicks": 648000,
   "deaths": 2,
-  "money": 3505038.0, // null si no hay Vault/Economy
+  "money": 3505038.0, // null if Vault/Economy is not present
   "custom": {
     "jobs_points": 1436
   }
@@ -102,9 +102,9 @@ Estadísticas del jugador (Vanilla, Vault y PlaceholderAPI).
 ---
 
 ### `GET /v1/players/{uuid}/containers`
-Devuelve el inventario principal y el cofre de ender del jugador.
+Returns the main inventory and ender chest for a player.
 
-**Respuesta 200 OK:**
+**Response 200 OK:**
 ```jsonc
 {
   "inventory": {
@@ -139,9 +139,9 @@ Devuelve el inventario principal y el cofre de ender del jugador.
 ---
 
 ### `POST /v1/players/{uuid}/containers/ops`
-Aplica un lote de operaciones de forma atómica sobre el hilo principal de Minecraft.
+Applies an atomic batch of container operations directly on the Minecraft main thread.
 
-**Cuerpo de la petición:**
+**Request Body:**
 ```jsonc
 {
   "baseRevision": { "inventory": 42, "enderchest": 7 },
@@ -150,7 +150,7 @@ Aplica un lote de operaciones de forma atómica sobre el hilo principal de Minec
       "op": "move",
       "from": { "c": "inventory", "slot": 3 },
       "to": { "c": "enderchest", "slot": 10 },
-      "count": null, // null = todo el stack
+      "count": null, // null = full stack
       "expectHash": "a91f4b82c0de"
     },
     {
@@ -175,30 +175,30 @@ Aplica un lote de operaciones de forma atómica sobre el hilo principal de Minec
 }
 ```
 
-**Respuestas:**
-- `200 OK`: Operaciones aplicadas con éxito.
+**Responses:**
+- `200 OK`: Operations successfully applied.
   ```jsonc
   {
     "ok": true,
     "undoRef": "undo_6f98a2b...",
-    "containers": { /* estado actualizado */ }
+    "containers": { /* updated state */ }
   }
   ```
-- `409 Conflict`: Algún `expectHash` o `baseRevision` no coincide (el jugador o el juego modificaron el ítem mientras se editaba). Devuelve el estado actual completo para revertir la UI.
+- `409 Conflict`: Hash mismatch or revision conflict (player or in-game mechanic modified item concurrently). Returns full updated state to trigger optimistic UI rollback.
   ```jsonc
   {
     "error": "conflict",
     "message": "Item at slot 3 has changed",
-    "containers": { /* estado actual */ }
+    "containers": { /* current state */ }
   }
   ```
 
 ---
 
 ### `POST /v1/players/{uuid}/containers/undo`
-Revierte una operación anterior usando su `undoRef`.
+Reverts a previous operation using its `undoRef`.
 
-**Cuerpo:**
+**Request Body:**
 ```jsonc
 {
   "undoRef": "undo_6f98a2b..."
@@ -208,16 +208,16 @@ Revierte una operación anterior usando su `undoRef`.
 ---
 
 ### `POST /v1/commands`
-Ejecuta un comando en la consola del servidor Minecraft.
+Executes a console command on the Minecraft server.
 
-**Cuerpo:**
+**Request Body:**
 ```jsonc
 {
-  "command": "say Servidor reiniciando en 5 minutos"
+  "command": "say Server restarting in 5 minutes"
 }
 ```
 
-**Respuesta 200 OK:**
+**Response 200 OK:**
 ```jsonc
 {
   "ok": true
@@ -227,41 +227,41 @@ Ejecuta un comando en la consola del servidor Minecraft.
 ---
 
 ### `GET /v1/link/verify?code=XXXXXX&consume=true|false`
-Verifica un código de vinculación o recuperación generado con `/panel link` o `/panel reset`.
+Verifies an authentication linking or password recovery code generated by `/panel link` or `/panel reset`.
 
-**Respuesta 200 OK:**
+**Response 200 OK:**
 ```jsonc
 {
   "uuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5",
   "name": "Steve",
-  "kind": "link" // o "reset"
+  "kind": "link" // or "reset"
 }
 ```
-**Respuesta 404 Not Found:** Código inválido o expirado.
+**Response 404 Not Found:** Invalid or expired code.
 
 ---
 
-## 3. Streaming WebSocket (`WS /v1/stream`)
+## 3. WebSocket Streaming (`WS /v1/stream`)
 
-El WebSocket permite streaming bidireccional de eventos y control de observadores.
+Bidirectional WebSocket streaming for live logs, metrics, and player watch tasks.
 
-### Mensajes Enviados por el Cliente al Bridge:
+### Client-to-Bridge Messages:
 ```jsonc
-// Activar vigilancia intensiva (WatchTask) sobre un jugador mientras se edita su inventario
+// Activate intensive watch task on player while editing inventory
 { "action": "watch", "uuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5" }
 
-// Desactivar vigilancia
+// Deactivate watch task
 { "action": "unwatch", "uuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5" }
 ```
 
-### Eventos Emitidos por el Bridge al Cliente:
+### Bridge-to-Client Events:
 
-1. **`console.line`** (línea de consola capturada por el appender Log4j):
+1. **`console.line`** (Server console line captured by Log4j appender):
    ```jsonc
    { "type": "console.line", "data": { "line": "[12:00:00 INFO]: Steve joined the game" } }
    ```
 
-2. **`metrics.tick`** (muestreo periódico cada 1 segundo):
+2. **`metrics.tick`** (Periodic sampling every 1 second):
    ```jsonc
    { "type": "metrics.tick", "data": { "tps": 20.0, "mspt": 6.2, "players": 3 } }
    ```
@@ -271,7 +271,7 @@ El WebSocket permite streaming bidireccional de eventos y control de observadore
    { "type": "player.join", "data": { "uuid": "...", "name": "Steve" } }
    ```
 
-4. **`container.diff`** (cambio detectado en el inventario o cofre de ender):
+4. **`container.diff`** (Live inventory or enderchest item delta):
    ```jsonc
    {
      "type": "container.diff",

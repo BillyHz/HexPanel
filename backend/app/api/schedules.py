@@ -1,4 +1,4 @@
-"""API para gestión de tareas programadas (Schedules / Cron)."""
+"""API for scheduled tasks management (Cron engine)."""
 from __future__ import annotations
 
 from typing import Optional

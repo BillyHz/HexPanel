@@ -1,4 +1,4 @@
-"""API para gestión visual de server.properties, MOTD e icono del servidor."""
+"""API for server.properties, MOTD, and server icon visual management."""
 from __future__ import annotations
 
 import re
@@ -20,7 +20,7 @@ _VALID_KEY_REGEX = re.compile(r"^[a-zA-Z0-9_\-\.]+$")
 
 
 def _clean_motd(raw: str) -> str:
-    """Elimina códigos de formato de Minecraft (§a, &a, etc.)."""
+    """Strips Minecraft formatting codes (§a, &a, etc.)."""
     cleaned = re.sub(r"[\u00a7&][0-9a-fk-orA-FK-OR]", "", raw)
     cleaned = cleaned.replace("\u00a7", "").replace("\ufffd", "")
     return cleaned
@@ -96,12 +96,22 @@ class PropertiesUpdateRequest(BaseModel):
     properties: Dict[str, Any]
 
 
+def _get_props_path(settings: Settings) -> Path:
+    p = settings.server_dir / "server.properties"
+    if p.is_file() and p.stat().st_size > 0:
+        return p
+    alt = Path("/opt/stacks/mc-hardcore/server.properties")
+    if alt.is_file() and alt.stat().st_size > 0:
+        return alt
+    return p
+
+
 @router.get("")
 def get_server_properties(
     ctx: Ctx = Depends(require(SERVER_VIEW)),
 ):
     settings = get_settings()
-    props_path = settings.server_dir / "server.properties"
+    props_path = _get_props_path(settings)
     props = _parse_properties_file(props_path)
 
     raw_motd = props.get("motd", "A Minecraft Server")
@@ -129,19 +139,19 @@ def update_server_properties(
     ctx: Ctx = Depends(require(PANEL_ADMIN)),
 ):
     settings = get_settings()
-    props_path = settings.server_dir / "server.properties"
+    props_path = _get_props_path(settings)
 
-    # Validar claves
+    # Validate keys
     clean_props: dict[str, str] = {}
     for k, v in req.properties.items():
         k_str = str(k).strip()
         if not _VALID_KEY_REGEX.match(k_str):
-            raise HTTPException(400, f"Clave de propiedad no válida: '{k_str}'")
+            raise HTTPException(400, f"Invalid property key: '{k_str}'")
         val_str = str(v).replace("\r", "")
         clean_props[k_str] = val_str
 
     _write_properties_file(props_path, clean_props)
-    return {"ok": True, "message": "Propiedades actualizadas exitosamente", "properties": clean_props}
+    return {"ok": True, "message": "Properties updated successfully", "properties": clean_props}
 
 
 @router.get("/icon")
@@ -151,7 +161,7 @@ def get_server_icon(
     settings = get_settings()
     icon_path = settings.server_dir / "server-icon.png"
     if not icon_path.is_file():
-        raise HTTPException(404, "server-icon.png no encontrado")
+        raise HTTPException(404, "server-icon.png not found")
     return FileResponse(icon_path, media_type="image/png")
 
 
@@ -162,13 +172,13 @@ async def upload_server_icon(
 ):
     content = await file.read()
     if len(content) < 24 or not content.startswith(b"\x89PNG\r\n\x1a\n"):
-        raise HTTPException(400, "El archivo debe ser una imagen PNG válida")
+        raise HTTPException(400, "File must be a valid PNG image")
 
-    # Extraer ancho y alto del chunk IHDR (bytes 16..24)
+    # Extract width and height from IHDR chunk (bytes 16..24)
     width, height = struct.unpack(">II", content[16:24])
     if width != 64 or height != 64:
         raise HTTPException(
-            400, f"La imagen debe ser de 64x64 píxeles (detectado {width}x{height})"
+            400, f"Image must be 64x64 pixels (detected {width}x{height})"
         )
 
     settings = get_settings()
@@ -180,7 +190,7 @@ async def upload_server_icon(
 
     return {
         "ok": True,
-        "message": "Icono del servidor actualizado exitosamente",
+        "message": "Server icon updated successfully",
         "icon_url": "/api/server/properties/icon",
         "size": len(content),
     }

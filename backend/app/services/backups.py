@@ -1,4 +1,4 @@
-"""Servicio de copias de seguridad (Backups) del servidor Minecraft."""
+"""Service for Minecraft server zip backups."""
 from __future__ import annotations
 
 import os

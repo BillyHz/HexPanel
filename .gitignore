@@ -56,4 +56,6 @@ tools/test_*.py
 tools/deploy_*.py
 tools/rebuild_*.py
 tools/monitor_*.py
+tools/debug_*.py
+tools/run_*.py
 Thumbs.db

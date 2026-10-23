@@ -1,4 +1,4 @@
-"""API para configuración y pruebas de Webhooks de Discord."""
+"""API for Discord Webhook configuration and live alerts."""
 from __future__ import annotations
 
 from typing import Optional

@@ -1,4 +1,4 @@
-"""API para gestión de copias de seguridad (Backups)."""
+"""API for server backup management."""
 from __future__ import annotations
 
 from typing import Optional

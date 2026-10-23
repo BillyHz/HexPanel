@@ -1,4 +1,4 @@
-"""API para Marketplace de Plugins (Modrinth API) y gestión de plugins locales."""
+"""API for Modrinth plugins marketplace and local plugin JAR management."""
 from __future__ import annotations
 
 import logging

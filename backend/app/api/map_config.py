@@ -1,4 +1,4 @@
-"""API para configuración del Mapa Web interactivo (Dynmap / Pl3xMap / BlueMap)."""
+"""API for interactive web map integration (Dynmap / Pl3xMap / BlueMap)."""
 from __future__ import annotations
 
 from typing import Optional

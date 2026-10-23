@@ -1,4 +1,4 @@
-"""Servicio de tareas programadas (Cron / Automations)."""
+"""Service for scheduled tasks (Cron engine / Automations)."""
 from __future__ import annotations
 
 import logging

@@ -17,7 +17,8 @@ services:
       - HEXPANEL_ADMIN_PASSWORD=${HEXPANEL_ADMIN_PASSWORD:-admin1234}
     volumes:
       - hexpanel_data:/app/data
-      - mc-hardcore_mc-hardcore-data:/server-data:ro
+      - mc-hardcore_mc-hardcore-data:/server-data:rw
+      - /opt/stacks/mc-hardcore/server.properties:/server-data/server.properties:rw
     networks:
       - mc-hardcore_default
 

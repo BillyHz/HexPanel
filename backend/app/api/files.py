@@ -1,7 +1,7 @@
-"""API para gestión de archivos del servidor (Web File Manager).
+"""API for server file management (Web File Manager).
 
-Seguridad crítica: Todas las operaciones verifican estrictamente que
-las rutas no salgan de settings.server_dir (prevención de Path Traversal).
+Critical security: All operations strictly verify that target paths
+remain sandboxed within settings.server_dir (Path Traversal prevention).
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ MAX_READ_SIZE = 5 * 1024 * 1024  # 5 MB
 
 
 def resolve_safe_path(base_dir: Path, rel_path: str = "") -> Path:
-    """Resuelve una ruta relativa asegurando que pertenezca a base_dir."""
+    """Resolves a relative path ensuring it strictly belongs to base_dir."""
     base_resolved = base_dir.resolve()
     # Limpiar barras iniciales y normalizar
     clean = rel_path.strip().replace("\\", "/").lstrip("/")
@@ -35,7 +35,7 @@ def resolve_safe_path(base_dir: Path, rel_path: str = "") -> Path:
     if not target.is_relative_to(base_resolved):
         raise HTTPException(
             status_code=403,
-            detail="Acceso denegado: ruta fuera del directorio permitido",
+            detail="Access denied: path outside allowed directory",
         )
     return target
 
