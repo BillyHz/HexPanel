@@ -13,12 +13,23 @@ import {
   CheckCircle2,
   Loader2,
   PackagePlus,
+  Crosshair,
+  Box,
+  Layers,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Card, Badge } from '../../components/ui'
 import { api } from '../../api/client'
 
-const DEFAULT_MAP_URL = 'http://100.72.184.60:8100'
+const BASE_MAP_URL = 'http://100.72.184.60:8100'
+const DEFAULT_PERSPECTIVE_URL = `${BASE_MAP_URL}/#world:-255:75:-80:180:0.35:0.25:0:0:perspective`
+
+interface RenderInfo {
+  is_updating: boolean
+  map?: string
+  progress?: number
+  remaining?: string
+}
 
 interface MapStatus {
   installed: boolean
@@ -26,11 +37,16 @@ interface MapStatus {
   online: boolean
   url: string
   enabled: boolean
+  render_info?: RenderInfo | null
 }
 
 export default function ServerMap() {
   const [mapUrl, setMapUrl] = useState(() => {
-    return localStorage.getItem('hexpanel_map_url') || DEFAULT_MAP_URL
+    const saved = localStorage.getItem('hexpanel_map_url')
+    if (!saved || saved === BASE_MAP_URL) {
+      return DEFAULT_PERSPECTIVE_URL
+    }
+    return saved
   })
   const [inputUrl, setInputUrl] = useState(mapUrl)
   const [isConfigOpen, setIsConfigOpen] = useState(false)
@@ -48,12 +64,7 @@ export default function ServerMap() {
   const checkStatus = async () => {
     setIsCheckingStatus(true)
     try {
-      const cfg = await api.getMapConfig().catch(() => null)
-      if (cfg?.url && cfg.url !== mapUrl) {
-        setMapUrl(cfg.url)
-        setInputUrl(cfg.url)
-      }
-      const st = await api.getMapStatus().catch(() => null)
+      const st = (await api.getMapStatus().catch(() => null)) as MapStatus | null
       if (st) {
         setStatus(st)
         if (st.online) {
@@ -69,6 +80,13 @@ export default function ServerMap() {
 
   useEffect(() => {
     checkStatus()
+    // Sondeo de estado cada 15 segundos si está renderizando
+    const timer = setInterval(() => {
+      api.getMapStatus().then((res: any) => {
+        if (res) setStatus(res)
+      }).catch(() => {})
+    }, 15000)
+    return () => clearInterval(timer)
   }, [])
 
   useEffect(() => {
@@ -95,33 +113,34 @@ export default function ServerMap() {
   }
 
   const handleResetDefault = async () => {
-    setInputUrl(DEFAULT_MAP_URL)
-    setMapUrl(DEFAULT_MAP_URL)
+    setInputUrl(DEFAULT_PERSPECTIVE_URL)
+    setMapUrl(DEFAULT_PERSPECTIVE_URL)
     setIsConfigOpen(false)
     setIframeKey((k) => k + 1)
     setIsIframeLoading(true)
     setForceLoad(true)
     try {
-      await api.updateMapConfig(DEFAULT_MAP_URL)
+      await api.updateMapConfig(DEFAULT_PERSPECTIVE_URL)
       await checkStatus()
     } catch (err) {
       console.error(err)
     }
   }
 
-  const handleAction = async (action: 'render' | 'pause' | 'reload') => {
+  const handleAction = async (action: 'render' | 'pause' | 'reload' | 'cancel') => {
     setIsExecutingAction(true)
     setActionMessage(null)
     try {
       await api.triggerMapAction(action)
       if (action === 'render') {
-        setActionMessage('Iniciado renderizado 3D de BlueMap para "world". Revisa el progreso en la consola.')
+        setActionMessage('Reanudado renderizado 3D de BlueMap para "world".')
       } else if (action === 'pause') {
-        setActionMessage('Renderizado de BlueMap pausado.')
+        setActionMessage('Renderizado de BlueMap pausado (CPU liberada).')
       } else if (action === 'reload') {
         setActionMessage('Configuración de BlueMap recargada con éxito.')
         setTimeout(() => setIframeKey((k) => k + 1), 1500)
       }
+      setTimeout(checkStatus, 1500)
     } catch (err: any) {
       setActionMessage(`Error: ${err?.message || 'No se pudo ejecutar la acción'}`)
     } finally {
@@ -130,20 +149,33 @@ export default function ServerMap() {
     }
   }
 
+  const setViewMode = (mode: 'player' | 'perspective' | 'flat') => {
+    let newUrl = mapUrl
+    if (mode === 'player' || mode === 'perspective') {
+      newUrl = `${BASE_MAP_URL}/#world:-255:75:-80:180:0.35:0.25:0:0:perspective`
+    } else if (mode === 'flat') {
+      newUrl = `${BASE_MAP_URL}/#world:-255:75:-80:180:0.35:0.25:0:0:flat`
+    }
+    setMapUrl(newUrl)
+    setInputUrl(newUrl)
+    setIframeKey((k) => k + 1)
+    setIsIframeLoading(true)
+  }
+
   const isOnline = status?.online || forceLoad
 
   return (
     <div
-      className={`grid gap-4 ${
+      className={`flex flex-col gap-2.5 h-[calc(100vh-7.25rem)] min-h-0 overflow-hidden ${
         isFullscreen
           ? 'fixed inset-0 z-50 p-4 bg-black/95 backdrop-blur-md h-screen'
-          : 'h-[calc(100vh-6.5rem)]'
+          : ''
       }`}
     >
       {/* Barra de control superior */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-app/80 border border-line p-3 rounded-xl shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-app/80 border border-line p-2.5 rounded-xl shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+          <div className="w-8 h-8 rounded-lg bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
             <Compass size={18} />
           </div>
           <div>
@@ -164,44 +196,74 @@ export default function ServerMap() {
                 <Badge tone="red">Plugin no instalado</Badge>
               )}
             </div>
-            <div className="text-[11px] text-muted font-mono truncate max-w-sm">
+            <div className="text-[11px] text-muted font-mono truncate max-w-xs md:max-w-md">
               {mapUrl}
             </div>
           </div>
         </div>
 
         {/* Acciones de BlueMap */}
-        <div className="flex flex-wrap items-center gap-2 font-sans">
+        <div className="flex flex-wrap items-center gap-1.5 font-sans">
           {status?.online && (
-            <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-line">
+            <div className="flex items-center gap-1.5 mr-1 pr-1.5 border-r border-line">
               <button
-                onClick={() => handleAction('render')}
-                disabled={isExecutingAction}
+                onClick={() => setViewMode('player')}
                 className="ghost-btn text-xs py-1.5 px-2.5 flex items-center gap-1 text-cyan-300 hover:text-cyan-200"
-                title="Iniciar renderizado 3D del mapa (/bluemap render world)"
+                title="Centrar vista 3D directamente en el jugador bob"
               >
-                <Play size={12} className="text-emerald-400" />
-                <span className="hidden sm:inline">Renderizar 3D</span>
+                <Crosshair size={13} className="text-cyan-400" />
+                <span className="hidden sm:inline">Centrar en Jugador</span>
               </button>
+
               <button
-                onClick={() => handleAction('pause')}
-                disabled={isExecutingAction}
-                className="ghost-btn text-xs py-1.5 px-2.5 flex items-center gap-1 text-amber-300 hover:text-amber-200"
-                title="Pausar renderizado de BlueMap"
+                onClick={() => setViewMode('perspective')}
+                className="ghost-btn text-xs py-1.5 px-2 flex items-center gap-1 text-slate-300 hover:text-white"
+                title="Cambiar a Modo 3D Perspectiva"
               >
-                <Pause size={12} className="text-amber-400" />
-                <span className="hidden sm:inline">Pausar</span>
+                <Box size={13} className="text-purple-400" />
+                <span className="hidden md:inline">3D</span>
               </button>
+
+              <button
+                onClick={() => setViewMode('flat')}
+                className="ghost-btn text-xs py-1.5 px-2 flex items-center gap-1 text-slate-300 hover:text-white"
+                title="Cambiar a Modo Plano 2D (Isometric)"
+              >
+                <Layers size={13} className="text-cyan-400" />
+                <span className="hidden md:inline">Plano</span>
+              </button>
+
+              {status.render_info?.is_updating ? (
+                <button
+                  onClick={() => handleAction('pause')}
+                  disabled={isExecutingAction}
+                  className="ghost-btn text-xs py-1.5 px-2.5 flex items-center gap-1 text-amber-300 hover:text-amber-200"
+                  title="Pausar renderizado de BlueMap para liberar CPU"
+                >
+                  <Pause size={12} className="text-amber-400" />
+                  <span className="hidden sm:inline">Pausar Render</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleAction('render')}
+                  disabled={isExecutingAction}
+                  className="ghost-btn text-xs py-1.5 px-2.5 flex items-center gap-1 text-emerald-300 hover:text-emerald-200"
+                  title="Reanudar renderizado 3D de BlueMap"
+                >
+                  <Play size={12} className="text-emerald-400" />
+                  <span className="hidden sm:inline">Reanudar Render</span>
+                </button>
+              )}
             </div>
           )}
 
           <button
             onClick={() => setIsConfigOpen(!isConfigOpen)}
-            className="ghost-btn text-xs py-1.5 px-3 flex items-center gap-1.5"
+            className="ghost-btn text-xs py-1.5 px-2.5 flex items-center gap-1"
             title="Configurar dirección del mapa"
           >
             <Settings size={13} />
-            <span>Configurar URL</span>
+            <span className="hidden sm:inline">URL</span>
           </button>
 
           <button
@@ -210,7 +272,7 @@ export default function ServerMap() {
               setIframeKey((k) => k + 1)
               setIsIframeLoading(true)
             }}
-            className="ghost-btn text-xs py-1.5 px-2.5"
+            className="ghost-btn text-xs py-1.5 px-2"
             title="Recargar vista y verificar conexión"
           >
             <RefreshCw size={13} className={isCheckingStatus ? 'animate-spin' : ''} />
@@ -220,27 +282,46 @@ export default function ServerMap() {
             href={mapUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="ghost-btn text-xs py-1.5 px-3 flex items-center gap-1.5 text-cyan-300 hover:border-cyan-400"
+            className="ghost-btn text-xs py-1.5 px-2.5 flex items-center gap-1 text-cyan-300 hover:border-cyan-400"
             title="Abrir mapa en pestaña completa"
           >
             <ExternalLink size={13} />
-            <span>Nueva Pestaña</span>
+            <span className="hidden sm:inline">Pestaña</span>
           </a>
 
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className="neon-btn text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer"
+            className="neon-btn text-xs py-1.5 px-2.5 flex items-center gap-1 cursor-pointer"
             title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
           >
             {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-            <span>{isFullscreen ? 'Normal' : 'Maximizar'}</span>
+            <span className="hidden sm:inline">{isFullscreen ? 'Normal' : 'Maximizar'}</span>
           </button>
         </div>
       </div>
 
+      {/* Barra de progreso de Renderizado 3D */}
+      {status?.render_info?.is_updating && (
+        <div className="bg-cyan-950/40 border border-cyan-500/30 px-3.5 py-1.5 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+          <div className="flex items-center gap-2 text-cyan-300">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping inline-block" />
+            <span className="font-semibold">Generando chunks 3D en segundo plano:</span>
+            <span className="text-white font-mono bg-cyan-900/60 px-1.5 py-0.5 rounded border border-cyan-500/40">
+              {status.render_info.progress != null ? `${status.render_info.progress.toFixed(1)}%` : 'Calculando...'}
+            </span>
+            {status.render_info.remaining && (
+              <span className="text-muted text-[11px]">(Quedan ~{status.render_info.remaining})</span>
+            )}
+          </div>
+          <div className="text-[11px] text-muted font-sans hidden md:block">
+            💡 Las zonas negras son chunks aún no procesados. Pulsa <b>"Centrar en Jugador"</b> para explorar el terreno 3D generado.
+          </div>
+        </div>
+      )}
+
       {/* Notificación de acciones ejecutadas */}
       {actionMessage && (
-        <div className="bg-cyan-950/60 border border-cyan-500/40 px-4 py-2 rounded-lg text-xs font-mono text-cyan-300 flex items-center gap-2">
+        <div className="bg-cyan-950/60 border border-cyan-500/40 px-3.5 py-1.5 rounded-lg text-xs font-mono text-cyan-300 flex items-center gap-2 shrink-0">
           <CheckCircle2 size={14} className="text-cyan-400 shrink-0" />
           <span>{actionMessage}</span>
         </div>
@@ -248,7 +329,7 @@ export default function ServerMap() {
 
       {/* Modal de Configuración de URL del Mapa */}
       {isConfigOpen && (
-        <Card className="p-4 border-cyan-500/40 shrink-0">
+        <Card className="p-3 border-cyan-500/40 shrink-0">
           <form onSubmit={handleSaveUrl} className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[260px]">
               <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
@@ -258,7 +339,7 @@ export default function ServerMap() {
                 type="text"
                 value={inputUrl}
                 onChange={(e) => setInputUrl(e.target.value)}
-                placeholder="http://100.72.184.60:8100 o https://map.tudominio.com"
+                placeholder="http://100.72.184.60:8100/#world:..."
                 className="w-full bg-app border border-line rounded-lg p-2 font-mono text-xs text-ink outline-none focus:border-neon"
               />
             </div>
@@ -278,8 +359,8 @@ export default function ServerMap() {
         </Card>
       )}
 
-      {/* Contenedor del mapa o Pantalla de Diagnóstico */}
-      <Card className="p-0 overflow-hidden border border-line flex-1 flex flex-col relative min-h-[400px] bg-[#02050e]">
+      {/* Contenedor del mapa 3D interactivo */}
+      <Card className="p-0 overflow-hidden border border-line flex-1 min-h-0 flex flex-col relative bg-[#02050e]">
         {!isOnline && !isCheckingStatus ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-radial from-[#0a1226] to-[#02050e]">
             <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 shadow-[0_0_20px_rgba(245,158,11,0.15)]">
@@ -295,7 +376,7 @@ export default function ServerMap() {
             <p className="text-muted text-xs max-w-md mb-6 leading-relaxed">
               {status?.installed
                 ? `El plugin ${status.plugin_name} está detectado, pero el servidor web no está respondiendo en ${mapUrl}. Puede estar terminando de cargar los chunks iniciales o el puerto 8100 necesita unos segundos.`
-                : 'Para ver el mapa 3D interactivo en tiempo real se requiere un plugin de renderizado como BlueMap o Dynmap instalado en el servidor Paper.'}
+                : 'Para ver el mapa 3D interactivo en tiempo real se requiere un plugin de renderizado como BlueMap instalado en el servidor Paper.'}
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3">
@@ -329,12 +410,15 @@ export default function ServerMap() {
             </div>
           </div>
         ) : (
-          <div className="relative w-full h-full flex-1 flex flex-col bg-[#02050e]">
+          <div className="relative w-full h-full flex-1 min-h-0 flex flex-col bg-[#02050e]">
             {isIframeLoading && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#02050e]/90 backdrop-blur-xs text-cyan-400">
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#02050e]/95 backdrop-blur-xs text-cyan-400">
                 <Loader2 size={36} className="animate-spin mb-3 text-neon" />
                 <span className="font-mono text-xs tracking-wider text-slate-300">
                   Cargando entorno 3D de BlueMap...
+                </span>
+                <span className="text-[11px] text-muted mt-1 font-sans">
+                  Sincronizando chunks y shaders WebGL
                 </span>
               </div>
             )}
@@ -343,7 +427,7 @@ export default function ServerMap() {
               key={iframeKey}
               src={mapUrl}
               title="Minecraft 3D Map (BlueMap / Dynmap)"
-              className="w-full h-full border-0 flex-1 bg-[#02050e]"
+              className="w-full h-full border-0 flex-1 min-h-0 bg-[#02050e]"
               style={{ backgroundColor: '#02050e' }}
               onLoad={() => setIsIframeLoading(false)}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

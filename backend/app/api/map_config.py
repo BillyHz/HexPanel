@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+import re
+from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 import httpx
 from pydantic import BaseModel
@@ -17,11 +18,19 @@ from app.services.server import execute_server_command
 router = APIRouter(prefix="/server/map", tags=["map"])
 log = logging.getLogger("hexpanel.map")
 
+DEFAULT_URL = "http://100.72.184.60:8100/#world:-255:75:-80:180:0.35:0.25:0:0:perspective"
+
 
 def get_map_settings(db: Session) -> MapSettings:
     st = db.get(MapSettings, 1)
     if not st:
-        st = MapSettings(id=1, enabled=True, url="http://100.72.184.60:8100", title="Mapa del Servidor")
+        st = MapSettings(id=1, enabled=True, url=DEFAULT_URL, title="Mapa del Servidor")
+        db.add(st)
+        db.commit()
+        db.refresh(st)
+    elif st.url == "http://100.72.184.60:8100":
+        # Upgrade existing clean URL to perspective spawn anchor
+        st.url = DEFAULT_URL
         db.add(st)
         db.commit()
         db.refresh(st)
@@ -35,7 +44,7 @@ class MapSettingsUpdateRequest(BaseModel):
 
 
 class MapActionRequest(BaseModel):
-    action: str  # render | pause | reload | cancel
+    action: str  # render | pause | reload | cancel | update_world
 
 
 @router.get("")
@@ -72,10 +81,11 @@ def update_map_config(
 
 @router.get("/status")
 async def get_map_status(
+    request: Request,
     db: Session = Depends(get_db),
     ctx: Ctx = Depends(require(SERVER_VIEW)),
 ):
-    """Verifica si el servicio de mapa (BlueMap/Dynmap) está instalado y respondiendo."""
+    """Verifica si el servicio de mapa (BlueMap/Dynmap) está instalado, respondiendo y el estado del render."""
     st = get_map_settings(db)
     settings = get_settings()
 
@@ -99,7 +109,6 @@ async def get_map_status(
 
     is_online = False
     test_urls = [
-        st.url,
         "http://mc-hardcore:8100",
         "http://127.0.0.1:8100",
         "http://100.72.184.60:8100",
@@ -115,12 +124,33 @@ async def get_map_status(
         except Exception:
             continue
 
+    render_info: Optional[dict[str, Any]] = None
+    if installed_plugin == "BlueMap" and is_online:
+        try:
+            bridge = getattr(request.app.state, "bridge", None)
+            if bridge and getattr(bridge, "connected", False):
+                raw_res = await bridge.command("bluemap")
+                raw_out = raw_res.get("output", "") if isinstance(raw_res, dict) else str(raw_res)
+                clean = re.sub(r"§[0-9a-zA-Z]", "", raw_out)
+                prog_m = re.search(r"progress:\s*([0-9.]+)\s*%", clean)
+                map_m = re.search(r"map\s+([a-zA-Z0-9_]+)", clean)
+                rem_m = re.search(r"remaining time:\s*([^\n\r]+)", clean)
+                render_info = {
+                    "is_updating": "is currently being updated" in clean,
+                    "map": map_m.group(1) if map_m else "world",
+                    "progress": float(prog_m.group(1)) if prog_m else None,
+                    "remaining": rem_m.group(1).strip() if rem_m else None,
+                }
+        except Exception as e:
+            log.debug("Error checking bluemap render status: %s", e)
+
     return {
         "installed": installed_plugin is not None,
         "plugin_name": installed_plugin or "BlueMap / Dynmap",
         "online": is_online,
         "url": st.url,
         "enabled": st.enabled,
+        "render_info": render_info,
     }
 
 
@@ -133,10 +163,10 @@ async def map_action(
 ):
     """Ejecuta comandos de control para el renderizador de mapa."""
     cmd_map = {
-        "render": "bluemap render world",
-        "pause": "bluemap pause",
+        "render": "bluemap unfreeze world",
+        "pause": "bluemap freeze world",
         "reload": "bluemap reload",
-        "cancel": "bluemap cancel",
+        "update_world": "bluemap update world",
     }
     cmd = cmd_map.get(req.action)
     if not cmd:
