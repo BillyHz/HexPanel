@@ -36,6 +36,9 @@ async def get_server_status(
     supervisor_state = supervisor.state.value if supervisor else (ProcessState.RUNNING.value if online else ProcessState.STOPPED.value)
     supervisor_metrics = supervisor.get_metrics() if supervisor else {}
 
+    heap = metrics.get("heap", {})
+    ram_mb = supervisor_metrics.get("ram_mb") or heap.get("usedMb", 0)
+
     return {
         "online": online,
         "state": supervisor_state,
@@ -44,9 +47,11 @@ async def get_server_status(
             "tps": metrics.get("tps", [20.0, 20.0, 20.0]),
             "mspt": metrics.get("mspt", 0.0),
             "players": metrics.get("players", {"online": 0, "max": 20}),
-            "jvm": metrics.get("heap", {}),
+            "jvm": heap,
             "cpu": supervisor_metrics.get("cpu", 0.0),
-            "ram_mb": supervisor_metrics.get("ram_mb", 0),
+            "ram_mb": ram_mb,
+            "max_ram_mb": heap.get("maxMb", 4096),
+            "worlds": metrics.get("worlds", []),
         },
         "playit": {
             "address": settings.playit_address,

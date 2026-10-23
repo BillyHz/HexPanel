@@ -61,6 +61,9 @@ async def _metrics_sampler(app: FastAPI, settings: Settings) -> None:
                 sm = supervisor.get_metrics()
                 cpu = sm.get("cpu", 0.0)
                 ram_mb = sm.get("ram_mb", 0)
+            elif "m" in locals() and isinstance(m, dict):
+                heap = m.get("heap", {})
+                ram_mb = int(heap.get("usedMb", 0))
 
             sample = MetricSample(
                 at=utcnow(),

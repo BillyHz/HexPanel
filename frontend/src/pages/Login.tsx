@@ -35,7 +35,9 @@ export default function Login() {
       } else {
         const ok = await login(username, password)
         if (ok) {
-          nav('/cuenta')
+          const u = useAuth.getState().user
+          const isAdmin = u?.role === 'admin' || u?.permissions?.includes('server.view') || u?.permissions?.includes('panel.admin')
+          nav(isAdmin ? '/admin/servidor' : '/cuenta')
         } else {
           setErr('Usuario o contraseña incorrectos')
         }

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import AppShell from './layout/AppShell'
 import Account from './pages/Account'
@@ -9,13 +10,60 @@ import PlayerDetail from './pages/admin/PlayerDetail'
 import Audit from './pages/admin/Audit'
 import Users from './pages/admin/Users'
 import Login from './pages/Login'
+import { useAuth } from './store/useAuth'
+
+function HomeRedirect() {
+  const { user, loading, init } = useAuth()
+
+  useEffect(() => {
+    init()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#050811] text-neon">
+        <div className="font-display font-bold text-lg tracking-widest animate-pulse">CARGANDO HEXPANEL...</div>
+        <div className="text-xs text-muted font-mono">Conectando con el servidor Paper 1.21.11</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  const isAdmin = user.role === 'admin' || user.permissions?.includes('server.view') || user.permissions?.includes('panel.admin')
+  return <Navigate to={isAdmin ? "/admin/servidor" : "/cuenta"} replace />
+}
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user, loading, init } = useAuth()
+
+  useEffect(() => {
+    if (!user) init()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center text-neon font-display tracking-widest animate-pulse">
+        CARGANDO...
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  return <>{children}</>
+}
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route element={<AppShell />}>
-        <Route path="/" element={<Navigate to="/cuenta" replace />} />
+      <Route element={<RequireAuth><AppShell /></RequireAuth>}>
+        <Route path="/" element={<HomeRedirect />} />
         <Route path="/cuenta" element={<Account />} />
         <Route path="/logros" element={<Achievements />} />
         <Route path="/ajustes" element={<Settings />} />
@@ -25,7 +73,7 @@ export default function App() {
         <Route path="/admin/auditoria" element={<Audit />} />
         <Route path="/admin/usuarios" element={<Users />} />
       </Route>
-      <Route path="*" element={<Navigate to="/cuenta" replace />} />
+      <Route path="*" element={<HomeRedirect />} />
     </Routes>
   )
 }
