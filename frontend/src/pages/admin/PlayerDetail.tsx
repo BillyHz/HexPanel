@@ -53,20 +53,50 @@ function ItemTooltip({ item }: { item: ItemDTO }) {
 }
 
 function ItemView({ item }: { item: ItemDTO }) {
+  const cleanId = item.id.replace('minecraft:', '')
   const isDamaged = item.damage !== undefined && item.maxDamage !== undefined && item.damage > 0
   const durPercent = isDamaged ? Math.max(0, 100 - (item.damage! / item.maxDamage!) * 100) : 100
   const durColor = durPercent > 60 ? '#00ff88' : durPercent > 25 ? '#ffcc00' : '#ff3344'
 
+  const [imgSrc, setImgSrc] = useState<string>(`/assets/items/${cleanId}.png`)
+  const [imgFailed, setImgFailed] = useState<boolean>(false)
+
+  useEffect(() => {
+    setImgSrc(`/assets/items/${cleanId}.png`)
+    setImgFailed(false)
+  }, [cleanId])
+
+  const handleImgError = () => {
+    if (imgSrc.startsWith('/assets/items/')) {
+      setImgSrc(`https://assets.mcasset.cloud/1.21.1/assets/minecraft/textures/item/${cleanId}.png`)
+    } else if (imgSrc.includes('/textures/item/')) {
+      setImgSrc(`https://assets.mcasset.cloud/1.21.1/assets/minecraft/textures/block/${cleanId}.png`)
+    } else {
+      setImgFailed(true)
+    }
+  }
+
+  const initials = cleanId
+    .split('_')
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() || '')
+    .join('')
+
   return (
     <div className="relative group w-10 h-10 flex items-center justify-center select-none">
-      <img
-        src={`/assets/items/${item.id.replace('minecraft:', '')}.png`}
-        onError={(e) => {
-          ;(e.target as HTMLElement).style.display = 'none'
-        }}
-        className={`w-8 h-8 object-contain ${item.glint ? 'drop-shadow-[0_0_8px_rgba(163,91,255,0.9)] animate-pulse' : ''}`}
-        alt={item.id}
-      />
+      {!imgFailed ? (
+        <img
+          src={imgSrc}
+          onError={handleImgError}
+          className={`w-8 h-8 object-contain ${item.glint ? 'drop-shadow-[0_0_8px_rgba(163,91,255,0.9)] animate-pulse' : ''}`}
+          alt={item.id}
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-8 h-8 rounded bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-[10px] font-bold text-cyan-300">
+          {initials || '?'}
+        </div>
+      )}
 
       {item.count > 1 && (
         <span
@@ -86,6 +116,27 @@ function ItemView({ item }: { item: ItemDTO }) {
       <ItemTooltip item={item} />
     </div>
   )
+}
+
+function CatalogItemIcon({ id }: { id: string }) {
+  const cleanId = id.replace('minecraft:', '')
+  const [src, setSrc] = useState(`/assets/items/${cleanId}.png`)
+  const [failed, setFailed] = useState(false)
+
+  const onError = () => {
+    if (src.startsWith('/assets/items/')) {
+      setSrc(`https://assets.mcasset.cloud/1.21.1/assets/minecraft/textures/item/${cleanId}.png`)
+    } else if (src.includes('/textures/item/')) {
+      setSrc(`https://assets.mcasset.cloud/1.21.1/assets/minecraft/textures/block/${cleanId}.png`)
+    } else {
+      setFailed(true)
+    }
+  }
+
+  if (failed) {
+    return <span className="w-4 h-4 text-[9px] font-bold text-cyan-400">■</span>
+  }
+  return <img src={src} className="w-4 h-4 object-contain" alt="" onError={onError} loading="lazy" />
 }
 
 function Slot({
@@ -132,10 +183,12 @@ export default function PlayerDetail() {
   const [splitAmount, setSplitAmount] = useState(1)
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
   const [conflictMsg, setConflictMsg] = useState('')
+  const [overview, setOverview] = useState<any>(null)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const loadData = async () => {
+    api.getPlayerOverview(name).then(setOverview).catch(() => {})
     try {
       const res = await api.getContainers(name)
       setState({ inventory: res.inventory, enderchest: res.enderchest })
@@ -287,7 +340,7 @@ export default function PlayerDetail() {
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-3">
           <div className="scale-[.28] origin-left w-10 h-10">
-            <SkinBust size={140} />
+            <SkinBust size={140} name={name} />
           </div>
           <div>
             <h1 className="font-display text-lg tracking-widest neon-text">{name}</h1>
@@ -308,6 +361,39 @@ export default function PlayerDetail() {
             Dar OP
           </button>
         </div>
+      </div>
+
+      {/* Resumen y Estadísticas del Jugador */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Card className="p-3 text-center">
+          <div className="text-[10px] text-muted font-display uppercase tracking-wider mb-1">Estado</div>
+          <div className="flex items-center justify-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full ${overview?.online ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
+            <span className="font-bold text-xs">{overview?.online ? 'En Línea' : 'Desconectado'}</span>
+          </div>
+        </Card>
+        <Card className="p-3 text-center">
+          <div className="text-[10px] text-muted font-display uppercase tracking-wider mb-1">Tiempo Jugado</div>
+          <div className="font-bold text-sm text-cyan-400">{overview?.stats?.playTimeHours !== undefined ? `${overview.stats.playTimeHours} h` : '--'}</div>
+        </Card>
+        <Card className="p-3 text-center">
+          <div className="text-[10px] text-muted font-display uppercase tracking-wider mb-1">Bloques Picados</div>
+          <div className="font-bold text-sm text-purple-400">{overview?.stats?.blocksMined !== undefined ? overview.stats.blocksMined.toLocaleString() : '--'}</div>
+        </Card>
+        <Card className="p-3 text-center">
+          <div className="text-[10px] text-muted font-display uppercase tracking-wider mb-1">Mobs Eliminados</div>
+          <div className="font-bold text-sm text-amber-400">{overview?.stats?.mobKills !== undefined ? overview.stats.mobKills.toLocaleString() : '--'}</div>
+        </Card>
+        <Card className="p-3 text-center">
+          <div className="text-[10px] text-muted font-display uppercase tracking-wider mb-1">Muertes</div>
+          <div className="font-bold text-sm text-rose-400">{overview?.stats?.deaths !== undefined ? overview.stats.deaths : '--'}</div>
+        </Card>
+        <Card className="p-3 text-center">
+          <div className="text-[10px] text-muted font-display uppercase tracking-wider mb-1">Cuenta Web</div>
+          <div className="font-bold text-xs text-muted truncate" title={overview?.account?.email || 'Sin vincular'}>
+            {overview?.account?.email || 'Sin vincular'}
+          </div>
+        </Card>
       </div>
 
       {conflictMsg && (
@@ -335,7 +421,7 @@ export default function PlayerDetail() {
                 <Slot c="inventory" slot={ARMOR_SLOTS.boots} item={getItem(state, { c: 'inventory', slot: ARMOR_SLOTS.boots })} label="Botas" />
               </div>
               <div className="scale-[.4] origin-center -mx-6">
-                <SkinBust size={140} />
+                <SkinBust size={140} name={name} />
               </div>
               <div className="grid grid-cols-1 gap-1.5 self-end">
                 <Slot c="inventory" slot={OFFHAND_SLOT} item={getItem(state, { c: 'inventory', slot: OFFHAND_SLOT })} label="Mano" />
@@ -394,12 +480,7 @@ export default function PlayerDetail() {
               onClick={() => giveItem(it)}
               className="ghost-btn flex items-center gap-2 py-1 px-2.5 text-xs"
             >
-              <img
-                src={`/assets/items/${it.id.replace('minecraft:', '')}.png`}
-                className="w-4 h-4 object-contain"
-                alt=""
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-              />
+              <CatalogItemIcon id={it.id} />
               {it.name}
             </button>
           ))}

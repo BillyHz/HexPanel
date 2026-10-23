@@ -109,6 +109,15 @@ export default function ServerStatus() {
         }
       })
       .catch(() => {})
+
+    // 4. Historial de consola
+    api.getServerConsole(200)
+      .then((historyLines) => {
+        if (Array.isArray(historyLines) && historyLines.length > 0) {
+          setLines(historyLines)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   // Escuchar stream en vivo de métricas y consola
@@ -308,7 +317,7 @@ export default function ServerStatus() {
               <div key={p.uuid} className="flex items-center justify-between p-3 rounded-lg bg-app/50 border border-line">
                 <div className="flex items-center gap-3">
                   <div className="scale-[.22] origin-left w-8 h-8">
-                    <SkinBust size={140} />
+                    <SkinBust size={140} name={p.name} />
                   </div>
                   <div>
                     <div className="font-bold text-sm text-ink">{p.name}</div>

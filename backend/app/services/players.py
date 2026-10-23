@@ -2,12 +2,157 @@
 from __future__ import annotations
 
 import hashlib
+import json
+from pathlib import Path
 from typing import Any, Optional
 from sqlmodel import Session, select
 from app.core.config import Settings
 from app.bridge.client import Bridge, BridgeError, BridgeUnavailable
 from app.services.stats import calculate_mined_blocks
 from app.db import models
+
+
+def _load_json_set(path: Path) -> tuple[set[str], set[str]]:
+    uuids = set()
+    names = set()
+    if not path.is_file():
+        return uuids, names
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict):
+                        u = item.get("uuid")
+                        n = item.get("name")
+                        if u:
+                            uuids.add(u.lower())
+                        if n:
+                            names.add(n.lower())
+    except Exception:
+        pass
+    return uuids, names
+
+
+async def get_players_list(
+    bridge: Bridge,
+    settings: Settings,
+    query: str = "",
+    online: Optional[bool] = None,
+) -> list[dict]:
+    ops_uuids, ops_names = _load_json_set(settings.server_dir / "ops.json")
+    banned_uuids, banned_names = _load_json_set(settings.server_dir / "banned-players.json")
+    white_uuids, white_names = _load_json_set(settings.server_dir / "whitelist.json")
+
+    online_players_map: dict[str, dict] = {}
+    try:
+        bp = await bridge.players(online=True)
+        if isinstance(bp, list):
+            for p in bp:
+                u = p.get("uuid", "").lower()
+                if u:
+                    online_players_map[u] = p
+    except Exception:
+        pass
+
+    known: dict[str, dict] = {}
+
+    # 1. From usercache.json
+    usercache_file = settings.server_dir / "usercache.json"
+    if usercache_file.is_file():
+        try:
+            with open(usercache_file, "r", encoding="utf-8", errors="replace") as f:
+                entries = json.load(f)
+                if isinstance(entries, list):
+                    for e in entries:
+                        if isinstance(e, dict):
+                            u = e.get("uuid", "").lower()
+                            name = e.get("name")
+                            if u and name:
+                                known[u] = {
+                                    "uuid": e.get("uuid"),
+                                    "name": name,
+                                    "online": False,
+                                    "lastSeen": None,
+                                }
+        except Exception:
+            pass
+
+    # 2. From playerdata
+    playerdata_dir = settings.server_dir / settings.world_name / "playerdata"
+    if not playerdata_dir.is_dir():
+        playerdata_dir = settings.server_dir / "world" / "playerdata"
+    if playerdata_dir.is_dir():
+        try:
+            for f in playerdata_dir.glob("*.dat"):
+                if f.name.endswith(".dat_old"):
+                    continue
+                u = f.stem.lower()
+                mtime_ms = int(f.stat().st_mtime * 1000)
+                if u in known:
+                    if not known[u].get("lastSeen") or mtime_ms > known[u]["lastSeen"]:
+                        known[u]["lastSeen"] = mtime_ms
+                else:
+                    known[u] = {
+                        "uuid": f.stem,
+                        "name": f.stem,
+                        "online": False,
+                        "lastSeen": mtime_ms,
+                    }
+        except Exception:
+            pass
+
+    # 3. Merge live online players from bridge
+    for u, p in online_players_map.items():
+        if u in known:
+            known[u]["online"] = True
+            if p.get("name"):
+                known[u]["name"] = p["name"]
+            if "lastIp" in p:
+                known[u]["lastIp"] = p["lastIp"]
+            known[u]["lastSeen"] = p.get("lastSeen") or known[u].get("lastSeen")
+        else:
+            known[u] = {
+                "uuid": p.get("uuid"),
+                "name": p.get("name"),
+                "online": True,
+                "lastSeen": p.get("lastSeen"),
+                "lastIp": p.get("lastIp"),
+            }
+
+    # 4. Fallback if known is empty (test/dev fake bridge)
+    if not known:
+        try:
+            all_bp = await bridge.players(query=query, online=online)
+            if isinstance(all_bp, list):
+                for p in all_bp:
+                    u = p.get("uuid", "").lower()
+                    if u:
+                        known[u] = p
+        except Exception:
+            pass
+
+    result = []
+    q_lower = query.strip().lower()
+
+    for u, p in known.items():
+        name_lower = p.get("name", "").lower()
+        if q_lower and (q_lower not in name_lower and q_lower not in u):
+            continue
+
+        is_online = bool(p.get("online", False))
+        if online is True and not is_online:
+            continue
+        if online is False and is_online:
+            continue
+
+        p["op"] = bool(p.get("op") or (u in ops_uuids or name_lower in ops_names))
+        p["banned"] = bool(p.get("banned") or (u in banned_uuids or name_lower in banned_names))
+        p["whitelisted"] = bool(p.get("whitelisted") or (u in white_uuids or name_lower in white_names))
+        result.append(p)
+
+    result.sort(key=lambda x: (not x.get("online", False), -(x.get("lastSeen") or 0)))
+    return result
 
 
 def offline_uuid(player_name: str) -> str:

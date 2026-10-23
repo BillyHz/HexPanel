@@ -114,6 +114,7 @@ export const api = {
   // Server
   getServerStatus: () => request<ServerStatus>('/api/server/status'),
   getServerMetrics: (rangeMinutes = 10) => request<any[]>(`/api/server/metrics?range_minutes=${rangeMinutes}`),
+  getServerConsole: (lines = 200) => request<string[]>(`/api/server/console?lines=${lines}`),
   powerServer: (action: 'start' | 'stop' | 'restart' | 'kill') =>
     request<{ ok: boolean; message?: string }>('/api/server/power', {
       method: 'POST',

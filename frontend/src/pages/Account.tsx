@@ -49,7 +49,7 @@ export default function Account() {
       <div className="grid lg:grid-cols-[minmax(260px,1fr)_2fr] gap-5">
         <Card className="p-6 flex flex-col items-center gap-6">
           <h2 className="font-display font-bold tracking-widest">{data.name}</h2>
-          <SkinBust size={170} />
+          <SkinBust size={170} name={data.name} />
           <div className="w-full text-center">
             <Badge tone={data.online ? 'green' : 'red'}>{data.online ? 'Conectado' : 'Desconectado'}</Badge>
             <div className="text-muted text-sm mt-1">Estado</div>

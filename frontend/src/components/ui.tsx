@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <div className={`neon-card ${className}`}>{children}</div>
@@ -40,18 +40,40 @@ export function Badge({ children, tone = 'blue' }: { children: ReactNode; tone?:
   )
 }
 
-/** Cabeza pixelada estilo Steve (placeholder hasta tener skins reales). */
-export function SkinBust({ size = 140 }: { size?: number }) {
+/** Avatar del jugador vía mc-heads o cabeza pixelada estilo Steve como fallback */
+export function SkinBust({ size = 140, name }: { size?: number; name?: string }) {
+  const [failed, setFailed] = useState(false)
+
   return (
-    <div className="rounded-full overflow-hidden flex items-end justify-center"
-      style={{ width: size, height: size, background: 'rgba(0,180,255,.12)', boxShadow: 'var(--glow)', border: '2px solid var(--accent)' }}>
-      <svg viewBox="0 0 8 8" width={size * 0.7} shapeRendering="crispEdges">
-        <rect width="8" height="8" fill="#6b4a2f" />
-        <rect y="3" width="8" height="5" fill="#c08a64" />
-        <rect x="1" y="4" width="2" height="1" fill="#fff" /><rect x="5" y="4" width="2" height="1" fill="#fff" />
-        <rect x="2" y="4" width="1" height="1" fill="#2a3cff" /><rect x="5" y="4" width="1" height="1" fill="#2a3cff" />
-        <rect x="3" y="6" width="2" height="1" fill="#7a4a3a" />
-      </svg>
+    <div
+      className="rounded-full overflow-hidden flex items-center justify-center shrink-0 select-none"
+      style={{
+        width: size,
+        height: size,
+        background: 'rgba(0,180,255,.12)',
+        boxShadow: 'var(--glow)',
+        border: '2px solid var(--accent)',
+      }}
+    >
+      {name && !failed ? (
+        <img
+          src={`https://mc-heads.net/avatar/${encodeURIComponent(name)}/${Math.round(size)}`}
+          alt={name}
+          className="w-full h-full object-cover rounded-full"
+          onError={() => setFailed(true)}
+          loading="lazy"
+        />
+      ) : (
+        <svg viewBox="0 0 8 8" width={size * 0.7} shapeRendering="crispEdges">
+          <rect width="8" height="8" fill="#6b4a2f" />
+          <rect y="3" width="8" height="5" fill="#c08a64" />
+          <rect x="1" y="4" width="2" height="1" fill="#fff" />
+          <rect x="5" y="4" width="2" height="1" fill="#fff" />
+          <rect x="2" y="4" width="1" height="1" fill="#2a3cff" />
+          <rect x="5" y="4" width="1" height="1" fill="#2a3cff" />
+          <rect x="3" y="6" width="2" height="1" fill="#7a4a3a" />
+        </svg>
+      )}
     </div>
   )
 }

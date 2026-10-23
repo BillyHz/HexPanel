@@ -175,18 +175,7 @@ public class BridgeServer {
         Boolean onlineOnly = onlineParam != null ? Boolean.parseBoolean(onlineParam) : null;
 
         List<Map<String, Object>> result = new ArrayList<>();
-        if (Boolean.FALSE.equals(onlineOnly)) {
-            for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
-                if (op.getName() != null && (query == null || op.getName().toLowerCase().contains(query.toLowerCase()))) {
-                    result.add(Map.of(
-                        "uuid", op.getUniqueId().toString(),
-                        "name", op.getName(),
-                        "online", op.isOnline(),
-                        "lastSeen", op.getLastSeen()
-                    ));
-                }
-            }
-        } else {
+        if (Boolean.TRUE.equals(onlineOnly)) {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 if (query == null || p.getName().toLowerCase().contains(query.toLowerCase())) {
                     result.add(Map.of(
@@ -196,6 +185,27 @@ public class BridgeServer {
                         "lastSeen", System.currentTimeMillis(),
                         "lastIp", p.getAddress() != null ? p.getAddress().getAddress().getHostAddress() : "unknown"
                     ));
+                }
+            }
+        } else {
+            for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
+                if (op.getName() != null && (query == null || op.getName().toLowerCase().contains(query.toLowerCase()))) {
+                    boolean isOnline = op.isOnline();
+                    if (Boolean.FALSE.equals(onlineOnly) && isOnline) {
+                        continue;
+                    }
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("uuid", op.getUniqueId().toString());
+                    map.put("name", op.getName());
+                    map.put("online", isOnline);
+                    map.put("lastSeen", op.getLastSeen());
+                    if (isOnline) {
+                        Player p = op.getPlayer();
+                        if (p != null && p.getAddress() != null && p.getAddress().getAddress() != null) {
+                            map.put("lastIp", p.getAddress().getAddress().getHostAddress());
+                        }
+                    }
+                    result.add(map);
                 }
             }
         }

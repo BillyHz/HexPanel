@@ -79,7 +79,7 @@ export default function Players() {
               <tr key={p.uuid} className="border-b border-line/50 hover:bg-hover/50 transition-colors">
                 <td className="py-3 px-4 flex items-center gap-3">
                   <div className="scale-[.22] origin-left w-8 h-8">
-                    <SkinBust size={140} />
+                    <SkinBust size={140} name={p.name} />
                   </div>
                   <div>
                     <div className="font-bold text-ink">{p.name}</div>

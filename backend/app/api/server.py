@@ -47,6 +47,24 @@ def server_metrics(
     return get_metrics_history(db, minutes=range_minutes)
 
 
+@router.get("/console")
+def server_console_history(
+    lines: int = 200,
+    ctx: Ctx = Depends(require(SERVER_CONSOLE)),
+):
+    settings = get_settings()
+    log_path = settings.server_dir / "logs" / "latest.log"
+    if not log_path.is_file():
+        return []
+    try:
+        lines_to_read = max(1, min(lines, 1000))
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+            return [l.rstrip("\r\n") for l in all_lines[-lines_to_read:]]
+    except Exception as e:
+        return [f"[HexPanel] Error al leer logs: {e}"]
+
+
 @router.post("/power")
 async def server_power(
     req: PowerRequest,

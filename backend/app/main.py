@@ -89,6 +89,50 @@ async def _metrics_sampler(app: FastAPI, settings: Settings) -> None:
             pass
 
 
+async def _console_tailer(app: FastAPI, settings: Settings) -> None:
+    log_path = settings.server_dir / "logs" / "latest.log"
+    last_pos = 0
+
+    while True:
+        try:
+            if log_path.is_file():
+                try:
+                    last_pos = log_path.stat().st_size
+                except Exception:
+                    last_pos = 0
+                break
+            await asyncio.sleep(2)
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            await asyncio.sleep(2)
+
+    while True:
+        try:
+            await asyncio.sleep(0.5)
+            if not log_path.is_file():
+                continue
+            cur_size = log_path.stat().st_size
+            if cur_size < last_pos:
+                last_pos = 0
+            if cur_size > last_pos:
+                with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                    f.seek(last_pos)
+                    new_lines = f.readlines()
+                    last_pos = f.tell()
+
+                hub = getattr(app.state, "hub", None)
+                if hub and new_lines:
+                    for line in new_lines:
+                        cleaned = line.rstrip("\r\n")
+                        if cleaned:
+                            await hub.broadcast("console", {"line": cleaned})
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            await asyncio.sleep(1)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -126,13 +170,17 @@ async def lifespan(app: FastAPI):
     app.state.hub = hub
 
     sampler_task = None
+    tailer_task = None
     if settings.run_background:
         sampler_task = asyncio.create_task(_metrics_sampler(app, settings))
+        tailer_task = asyncio.create_task(_console_tailer(app, settings))
 
     yield
 
     if sampler_task:
         sampler_task.cancel()
+    if tailer_task:
+        tailer_task.cancel()
     await hub.stop()
     await bridge.close()
 

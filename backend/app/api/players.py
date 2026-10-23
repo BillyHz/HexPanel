@@ -9,7 +9,7 @@ from sqlmodel import Session
 from app.core.config import get_settings
 from app.core.permissions import PLAYERS_VIEW, PLAYERS_MODERATE
 from app.core.security import Ctx, get_db, require
-from app.services.players import execute_player_action, get_player_overview
+from app.services.players import execute_player_action, get_player_overview, get_players_list
 from app.services.audit import record_audit
 
 router = APIRouter(prefix="/players", tags=["players"])
@@ -27,11 +27,12 @@ async def list_players(
     online: Optional[bool] = None,
     ctx: Ctx = Depends(require(PLAYERS_VIEW)),
 ):
+    settings = get_settings()
     bridge = request.app.state.bridge
     try:
-        return await bridge.players(query=q, online=online)
+        return await get_players_list(bridge, settings, query=q, online=online)
     except Exception as e:
-        raise HTTPException(502, f"Error al comunicarse con el Bridge: {e}")
+        raise HTTPException(502, f"Error al listar jugadores: {e}")
 
 
 @router.get("/{name}/overview")
