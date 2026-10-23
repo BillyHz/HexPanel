@@ -48,4 +48,12 @@ build/
 *.swp
 *.swo
 .DS_Store
+
+# Temporary scripts
+tools/check_*.py
+tools/inspect_*.py
+tools/test_*.py
+tools/deploy_*.py
+tools/rebuild_*.py
+tools/monitor_*.py
 Thumbs.db
